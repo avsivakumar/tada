@@ -3,7 +3,19 @@ import { Task } from '../types';
 export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null => {
   if (!task.isRecurring || !task.recurrencePattern) return null;
 
-  const baseDate = fromDate || new Date(task.dueDate);
+  // Determine base date for recurring task
+  let baseDate: Date;
+  if (fromDate) {
+    baseDate = fromDate;
+  } else if (task.dueDate) {
+    baseDate = new Date(task.dueDate);
+  } else if (task.lastGeneratedDate) {
+    baseDate = new Date(task.lastGeneratedDate);
+  } else {
+    // For recurring tasks without due date, start from creation date
+    baseDate = new Date(task.createdAt);
+  }
+
   const nextDate = new Date(baseDate);
 
   switch (task.recurrencePattern) {
@@ -38,23 +50,41 @@ export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null
   };
 
   // Update reminder time if it exists
-  if (task.reminderOffset && newTask.dueDate) {
+  if (task.reminderNumber && task.reminderUnit && newTask.dueDate) {
     const due = new Date(newTask.dueDate);
-    const reminder = new Date(due.getTime() - task.reminderOffset * 60000);
+    let offsetMs = 0;
+    switch (task.reminderUnit) {
+      case 'minutes': offsetMs = task.reminderNumber * 60 * 1000; break;
+      case 'hours': offsetMs = task.reminderNumber * 60 * 60 * 1000; break;
+      case 'days': offsetMs = task.reminderNumber * 24 * 60 * 60 * 1000; break;
+      case 'weeks': offsetMs = task.reminderNumber * 7 * 24 * 60 * 60 * 1000; break;
+      case 'months': offsetMs = task.reminderNumber * 30 * 24 * 60 * 60 * 1000; break;
+    }
+    const reminder = new Date(due.getTime() - offsetMs);
     newTask.reminderTime = reminder.toISOString();
   }
 
   return newTask;
 };
 
-export const shouldGenerateInstances = (task: Task): boolean => {
+
+export const shouldGenerateNextInstance = (task: Task): boolean => {
   if (!task.isRecurring || !task.recurrencePattern) return false;
   
-  const now = new Date();
-  const lastGenerated = task.lastGeneratedDate ? new Date(task.lastGeneratedDate) : new Date(task.dueDate);
-  const daysAhead = 30; // Generate instances up to 30 days ahead
-  const generateUntil = new Date(now);
-  generateUntil.setDate(generateUntil.getDate() + daysAhead);
-
-  return lastGenerated < generateUntil;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Determine the last generated date
+  let lastGenerated: Date;
+  if (task.lastGeneratedDate) {
+    lastGenerated = new Date(task.lastGeneratedDate);
+  } else if (task.dueDate) {
+    lastGenerated = new Date(task.dueDate);
+  } else {
+    lastGenerated = new Date(task.createdAt);
+  }
+  lastGenerated.setHours(0, 0, 0, 0);
+  
+  // Only generate if the last generated date is today or in the past
+  return lastGenerated <= today;
 };

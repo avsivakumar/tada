@@ -48,11 +48,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskReschedule, on
     }
     return days;
   };
-
   const getTasksForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return tasks.filter(task => task.dueDate === dateStr);
+    // Filter out recurring task templates, only show instances
+    return tasks.filter(task => {
+      if (task.dueDate !== dateStr) return false;
+      // Exclude recurring templates (only show instances)
+      const isRecurringTemplate = task.isRecurring && !task.parentTaskId;
+      return !isRecurringTemplate;
+    });
   };
+
 
   const handlePrev = () => {
     if (viewMode === 'month') {

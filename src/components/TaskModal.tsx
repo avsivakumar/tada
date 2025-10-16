@@ -9,38 +9,47 @@ interface TaskModalProps {
   selectedDate?: Date | null;
 }
 
-
 const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, selectedDate }) => {
-
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
-  const [dueDate, setDueDate] = useState('');
-  const [category, setCategory] = useState('Work');
+  const [priority, setPriority] = useState(false);
+  const [dueDate, setDueDate] = useState<string>('');
+  const [dueTime, setDueTime] = useState<string>('');
   const [tags, setTags] = useState('');
-  const [reminderOffset, setReminderOffset] = useState<number | ''>('');
+  const [hasReminder, setHasReminder] = useState(false);
+  const [reminderNumber, setReminderNumber] = useState<number>(1);
+  const [reminderUnit, setReminderUnit] = useState<'minutes' | 'hours' | 'days' | 'weeks' | 'months'>('hours');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrencePattern, setRecurrencePattern] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+  const [recurrenceTime, setRecurrenceTime] = useState<string>('09:00');
+  const [recurrenceDayOfWeek, setRecurrenceDayOfWeek] = useState<number>(1);
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState<number>(1);
+  const [recurrenceMonth, setRecurrenceMonth] = useState<number>(1);
+  const [recurrenceDayOfYear, setRecurrenceDayOfYear] = useState<number>(1);
 
 
   useEffect(() => {
     if (isOpen && task) {
       setTitle(task.title);
-      setDescription(task.description);
       setPriority(task.priority);
-      setDueDate(task.dueDate);
-      setCategory(task.category);
+      setDueDate(task.dueDate || '');
+      setDueTime(task.dueTime || '');
       setTags(task.tags.join(', '));
-      setReminderOffset(task.reminderOffset || '');
+      setHasReminder(task.reminderNumber ? task.reminderNumber > 0 : false);
+      setReminderNumber(task.reminderNumber || 1);
+      setReminderUnit(task.reminderUnit || 'hours');
       setIsRecurring(task.isRecurring || false);
       setRecurrencePattern(task.recurrencePattern || 'weekly');
       setRecurrenceEndDate(task.recurrenceEndDate || '');
+      setRecurrenceTime(task.recurrenceTime || '09:00');
+      setRecurrenceDayOfWeek(task.recurrenceDayOfWeek ?? 1);
+      setRecurrenceDayOfMonth(task.recurrenceDayOfMonth ?? 1);
+      setRecurrenceMonth(task.recurrenceMonth ?? 1);
+      setRecurrenceDayOfYear(task.recurrenceDayOfYear ?? 1);
+
     } else if (isOpen && !task) {
-      // New task - check if date was selected from calendar
       setTitle('');
-      setDescription('');
-      setPriority('medium');
+      setPriority(false);
       if (selectedDate) {
         const year = selectedDate.getFullYear();
         const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
@@ -49,47 +58,59 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
       } else {
         setDueDate('');
       }
-      setCategory('Work');
       setTags('');
-      setReminderOffset('');
+      setHasReminder(false);
+      setReminderNumber(1);
+      setReminderUnit('hours');
       setIsRecurring(false);
       setRecurrencePattern('weekly');
       setRecurrenceEndDate('');
     }
   }, [isOpen, task, selectedDate]);
 
-
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     let reminderTime: string | undefined;
-    if (dueDate && reminderOffset) {
+    if (dueDate && hasReminder && reminderNumber > 0) {
       const due = new Date(dueDate);
-      const reminder = new Date(due.getTime() - (reminderOffset as number) * 60000);
+      let offsetMs = 0;
+      switch (reminderUnit) {
+        case 'minutes': offsetMs = reminderNumber * 60 * 1000; break;
+        case 'hours': offsetMs = reminderNumber * 60 * 60 * 1000; break;
+        case 'days': offsetMs = reminderNumber * 24 * 60 * 60 * 1000; break;
+        case 'weeks': offsetMs = reminderNumber * 7 * 24 * 60 * 60 * 1000; break;
+        case 'months': offsetMs = reminderNumber * 30 * 24 * 60 * 60 * 1000; break;
+      }
+      const reminder = new Date(due.getTime() - offsetMs);
       reminderTime = reminder.toISOString();
     }
 
     onSave({
       title,
-      description,
       priority,
-      dueDate,
+      dueDate: dueDate || null,
+      dueTime: dueTime || undefined,
       completed: task?.completed || false,
-      category,
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-      reminderOffset: reminderOffset || undefined,
+      reminderNumber: hasReminder && reminderNumber > 0 ? reminderNumber : undefined,
+      reminderUnit: hasReminder && reminderNumber > 0 ? reminderUnit : undefined,
       reminderTime,
       snoozedUntil: task?.snoozedUntil,
-      isRecurring: isRecurring,
+      isRecurring,
       recurrencePattern: isRecurring ? recurrencePattern : undefined,
       recurrenceEndDate: isRecurring && recurrenceEndDate ? recurrenceEndDate : undefined,
+      recurrenceTime: isRecurring ? recurrenceTime : undefined,
+      recurrenceDayOfWeek: isRecurring && recurrencePattern === 'weekly' ? recurrenceDayOfWeek : undefined,
+      recurrenceDayOfMonth: isRecurring && recurrencePattern === 'monthly' ? recurrenceDayOfMonth : undefined,
+      recurrenceMonth: isRecurring && recurrencePattern === 'yearly' ? recurrenceMonth : undefined,
+      recurrenceDayOfYear: isRecurring && recurrencePattern === 'yearly' ? recurrenceDayOfYear : undefined,
       lastGeneratedDate: task?.lastGeneratedDate,
       parentTaskId: task?.parentTaskId,
     }, task?.id);
+
     onClose();
   };
-
 
   if (!isOpen) return null;
 
@@ -103,72 +124,177 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
           <form onSubmit={handleSubmit} className="space-y-4">
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="Task title" required
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description" rows={3}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
-            <select value={priority} onChange={(e) => setPriority(e.target.value as any)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
-              <option value="low">Low Priority</option>
-              <option value="medium">Medium Priority</option>
-              <option value="high">High Priority</option>
-            </select>
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
-            <select value={reminderOffset} onChange={(e) => setReminderOffset(e.target.value ? Number(e.target.value) : '')}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
-              <option value="">No Reminder</option>
-              <option value="15">15 minutes before</option>
-              <option value="60">1 hour before</option>
-              <option value="1440">1 day before</option>
-              <option value="10080">1 week before</option>
-            </select>
+              className="w-full px-4 py-3 text-lg border rounded-lg focus:ring-2 focus:ring-teal-500" />
             
-            {/* Recurring Task Section */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={priority}
+                onChange={(e) => setPriority(e.target.checked)}
+                className="w-5 h-5 text-teal-600 rounded" />
+              <span className="font-semibold text-gray-700">High Priority</span>
+            </label>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+              <div className="flex gap-2">
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+                  disabled={isRecurring}
+                  className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500" />
+                <input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)}
+                  disabled={isRecurring}
+                  className="w-32 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500" />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {isRecurring ? 'Due date is disabled for recurring tasks' : 'Time is optional'}
+              </p>
+            </div>
+
+
+
+            
             <div className="border-t pt-4">
               <label className="flex items-center gap-2 mb-3">
-                <input
-                  type="checkbox"
-                  checked={isRecurring}
-                  onChange={(e) => setIsRecurring(e.target.checked)}
-                  className="w-4 h-4 text-teal-600"
-                />
+                <input type="checkbox" checked={isRecurring}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsRecurring(checked);
+                    if (checked) {
+                      setDueDate('');
+                      setDueTime('');
+                    }
+                  }}
+                  className="w-4 h-4 text-teal-600" />
                 <span className="font-semibold text-gray-700">Recurring Task</span>
               </label>
+
               
               {isRecurring && (
                 <div className="space-y-3 pl-6">
-                  <select
-                    value={recurrencePattern}
+                  <select value={recurrencePattern}
                     onChange={(e) => setRecurrencePattern(e.target.value as any)}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
-                  >
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
                   </select>
                   
-                  <input
-                    type="date"
-                    value={recurrenceEndDate}
+                  {recurrencePattern === 'daily' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Time of Day</label>
+                      <input type="time" value={recurrenceTime}
+                        onChange={(e) => setRecurrenceTime(e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                    </div>
+                  )}
+
+                  {recurrencePattern === 'weekly' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Day of Week</label>
+                      <select value={recurrenceDayOfWeek}
+                        onChange={(e) => setRecurrenceDayOfWeek(Number(e.target.value))}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
+                        <option value={0}>Sunday</option>
+                        <option value={1}>Monday</option>
+                        <option value={2}>Tuesday</option>
+                        <option value={3}>Wednesday</option>
+                        <option value={4}>Thursday</option>
+                        <option value={5}>Friday</option>
+                        <option value={6}>Saturday</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {recurrencePattern === 'monthly' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Day of Month</label>
+                      <input type="number" min="1" max="31" value={recurrenceDayOfMonth}
+                        onChange={(e) => setRecurrenceDayOfMonth(Number(e.target.value))}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                    </div>
+                  )}
+
+                  {recurrencePattern === 'yearly' && (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+                        <select value={recurrenceMonth}
+                          onChange={(e) => setRecurrenceMonth(Number(e.target.value))}
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
+                          <option value={1}>January</option>
+                          <option value={2}>February</option>
+                          <option value={3}>March</option>
+                          <option value={4}>April</option>
+                          <option value={5}>May</option>
+                          <option value={6}>June</option>
+                          <option value={7}>July</option>
+                          <option value={8}>August</option>
+                          <option value={9}>September</option>
+                          <option value={10}>October</option>
+                          <option value={11}>November</option>
+                          <option value={12}>December</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+                        <input type="number" min="1" max="31" value={recurrenceDayOfYear}
+                          onChange={(e) => setRecurrenceDayOfYear(Number(e.target.value))}
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <input type="date" value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
                     placeholder="End date (optional)"
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
-                  />
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
                   <p className="text-xs text-gray-500">Leave end date empty for indefinite recurrence</p>
                 </div>
               )}
+
             </div>
-            
-            <input type="text" value={category} onChange={(e) => setCategory(e.target.value)}
-              placeholder="Category" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+
+            {(dueDate || isRecurring) && (
+              <div className="border-t pt-4">
+                <label className="flex items-center gap-2 mb-3">
+                  <input type="checkbox" checked={hasReminder}
+                    onChange={(e) => setHasReminder(e.target.checked)}
+                    className="w-4 h-4 text-teal-600" />
+                  <span className="font-semibold text-gray-700">Remind Me</span>
+                </label>
+                
+                {hasReminder && (
+                  <div className="space-y-2 pl-6">
+                    <div className="flex gap-2">
+                      <input type="number" min="1" value={reminderNumber}
+                        onChange={(e) => setReminderNumber(Number(e.target.value))}
+                        className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                      <select value={reminderUnit}
+                        onChange={(e) => setReminderUnit(e.target.value as any)}
+                        className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
+                        <option value="minutes">Minutes</option>
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                        <option value="months">Months</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {dueDate ? 'Remind me before due date' : 'Reminder will apply to each occurrence'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <input type="text" value={tags} onChange={(e) => setTags(e.target.value)}
-              placeholder="Tags (comma separated)" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+              placeholder="Tags (comma separated)" 
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
 
             <div className="flex gap-3 pt-2">
-              <button type="submit" className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700">Save</button>
-              <button type="button" onClick={onClose} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">Cancel</button>
+              <button type="submit" 
+                className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700">Save</button>
+              <button type="button" onClick={onClose} 
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">Cancel</button>
             </div>
           </form>
         </div>

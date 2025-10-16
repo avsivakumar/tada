@@ -9,11 +9,13 @@ class TadaDatabase extends Dexie {
 
   constructor() {
     super('TadaDB');
-    this.version(1).stores({
-      tasks: '++id, title, status, priority, dueDate, category, createdAt',
+    // Version 2: Added reminder and recurring task fields
+    this.version(2).stores({
+      tasks: '++id, title, priority, dueDate, completed, createdAt, reminderNumber, reminderUnit, reminderTime, isRecurring',
       notes: '++id, title, category, createdAt, updatedAt'
     });
   }
+
 }
 
 const dexieDb = new TadaDatabase();
@@ -85,7 +87,6 @@ class DatabaseService {
     const q = query.toLowerCase();
     return await dexieDb.tasks.filter(t => 
       t.title.toLowerCase().includes(q) || 
-      t.description.toLowerCase().includes(q) ||
       t.tags.some(tag => tag.toLowerCase().includes(q))
     ).toArray();
   }

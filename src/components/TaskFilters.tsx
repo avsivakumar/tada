@@ -4,13 +4,11 @@ interface TaskFiltersProps {
   activeFilters: {
     priority: string[];
     status: string[];
-    category: string[];
   };
   onFilterChange: (filterType: string, value: string) => void;
-  categories: string[];
 }
 
-const TaskFilters: React.FC<TaskFiltersProps> = ({ activeFilters, onFilterChange, categories }) => {
+const TaskFilters: React.FC<TaskFiltersProps> = ({ activeFilters, onFilterChange }) => {
   const toggleFilter = (type: string, value: string) => {
     onFilterChange(type, value);
   };
@@ -20,7 +18,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ activeFilters, onFilterChange
       <div>
         <p className="text-xs font-semibold text-gray-600 mb-2">Priority</p>
         <div className="flex gap-2 flex-wrap">
-          {['high', 'medium', 'low'].map(priority => (
+          {['high', 'normal'].map(priority => (
             <button
               key={priority}
               onClick={() => toggleFilter('priority', priority)}
@@ -54,27 +52,6 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ activeFilters, onFilterChange
           ))}
         </div>
       </div>
-
-      {categories.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-gray-600 mb-2">Category</p>
-          <div className="flex gap-2 flex-wrap">
-            {categories.map(category => (
-              <button
-                key={category}
-                onClick={() => toggleFilter('category', category)}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition ${
-                  activeFilters.category.includes(category)
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,26 +1,26 @@
 import { Task, Note } from '../types';
 
 export const initialTasks: Task[] = [
-  { id: 1, title: 'Complete project proposal', description: 'Finalize Q4 project proposal with budget estimates', priority: 'high', dueDate: '2025-10-20', completed: false, category: 'Work', tags: ['urgent', 'project'], createdAt: '2025-10-10' },
-  { id: 2, title: 'Review code pull requests', description: 'Review and merge pending PRs from team members', priority: 'medium', dueDate: '2025-10-16', completed: false, category: 'Work', tags: ['code', 'review'], createdAt: '2025-10-12' },
-  { id: 3, title: 'Grocery shopping', description: 'Buy vegetables, fruits, and pantry essentials', priority: 'low', dueDate: '2025-10-15', completed: true, category: 'Personal', tags: ['shopping', 'home'], createdAt: '2025-10-13' },
-  { id: 4, title: 'Update documentation', description: 'Update API documentation for new endpoints', priority: 'medium', dueDate: '2025-10-18', completed: false, category: 'Work', tags: ['docs', 'api'], createdAt: '2025-10-11' },
-  { id: 5, title: 'Team meeting prep', description: 'Prepare slides for quarterly review meeting', priority: 'high', dueDate: '2025-10-17', completed: false, category: 'Work', tags: ['meeting', 'presentation'], createdAt: '2025-10-14' },
-  { id: 6, title: 'Gym workout', description: 'Cardio and strength training session', priority: 'low', dueDate: '2025-10-15', completed: false, category: 'Health', tags: ['fitness', 'exercise'], createdAt: '2025-10-13' },
-  { id: 7, title: 'Pay utility bills', description: 'Electricity, water, and internet bills due', priority: 'high', dueDate: '2025-10-16', completed: false, category: 'Finance', tags: ['bills', 'payment'], createdAt: '2025-10-12' },
-  { id: 8, title: 'Book dentist appointment', description: 'Schedule routine dental checkup', priority: 'medium', dueDate: '2025-10-22', completed: false, category: 'Health', tags: ['appointment', 'medical'], createdAt: '2025-10-14' },
-  { id: 9, title: 'Fix bug in login module', description: 'Resolve authentication timeout issue', priority: 'high', dueDate: '2025-10-16', completed: true, category: 'Work', tags: ['bug', 'urgent'], createdAt: '2025-10-10' },
-  { id: 10, title: 'Plan weekend trip', description: 'Research destinations and book accommodation', priority: 'low', dueDate: '2025-10-19', completed: false, category: 'Personal', tags: ['travel', 'planning'], createdAt: '2025-10-13' },
-  { id: 11, title: 'Call mom', description: 'Weekly check-in call with family', priority: 'medium', dueDate: '2025-10-15', completed: false, category: 'Personal', tags: ['family', 'call'], createdAt: '2025-10-14' },
-  { id: 12, title: 'Database backup', description: 'Perform weekly database backup and verification', priority: 'high', dueDate: '2025-10-17', completed: false, category: 'Work', tags: ['maintenance', 'backup'], createdAt: '2025-10-11' },
-  { id: 13, title: 'Read book chapter', description: 'Finish chapter 5 of productivity book', priority: 'low', dueDate: '2025-10-20', completed: false, category: 'Personal', tags: ['reading', 'learning'], createdAt: '2025-10-12' },
-  { id: 14, title: 'Client presentation', description: 'Present new feature demo to client stakeholders', priority: 'high', dueDate: '2025-10-18', completed: false, category: 'Work', tags: ['client', 'demo'], createdAt: '2025-10-13' },
-  { id: 15, title: 'Car maintenance', description: 'Oil change and tire rotation service', priority: 'medium', dueDate: '2025-10-21', completed: false, category: 'Personal', tags: ['car', 'maintenance'], createdAt: '2025-10-14' },
-  { id: 16, title: 'Write blog post', description: 'Draft article on React best practices', priority: 'low', dueDate: '2025-10-23', completed: false, category: 'Personal', tags: ['writing', 'blog'], createdAt: '2025-10-13' },
-  { id: 17, title: 'Security audit', description: 'Review application security vulnerabilities', priority: 'high', dueDate: '2025-10-19', completed: false, category: 'Work', tags: ['security', 'audit'], createdAt: '2025-10-12' },
-  { id: 18, title: 'Organize closet', description: 'Sort and donate unused clothes', priority: 'low', dueDate: '2025-10-24', completed: false, category: 'Personal', tags: ['home', 'organizing'], createdAt: '2025-10-14' },
-  { id: 19, title: 'Submit expense report', description: 'File monthly expense reimbursement', priority: 'medium', dueDate: '2025-10-17', completed: false, category: 'Work', tags: ['finance', 'admin'], createdAt: '2025-10-11' },
-  { id: 20, title: 'Learn TypeScript', description: 'Complete online TypeScript course module 3', priority: 'medium', dueDate: '2025-10-22', completed: false, category: 'Personal', tags: ['learning', 'coding'], createdAt: '2025-10-13' }
+  { id: 1, title: 'Complete project proposal', priority: true, dueDate: '2025-10-20', completed: false, tags: ['urgent', 'project'], createdAt: '2025-10-10', reminderNumber: 1, reminderUnit: 'days' },
+  { id: 2, title: 'Review code pull requests', priority: false, dueDate: '2025-10-16', completed: false, tags: ['code', 'review'], createdAt: '2025-10-12', reminderNumber: 2, reminderUnit: 'hours' },
+  { id: 3, title: 'Grocery shopping', priority: false, dueDate: '2025-10-15', completed: true, tags: ['shopping', 'home'], createdAt: '2025-10-13' },
+  { id: 4, title: 'Update documentation', priority: false, dueDate: '2025-10-18', completed: false, tags: ['docs', 'api'], createdAt: '2025-10-11' },
+  { id: 5, title: 'Team meeting prep', priority: true, dueDate: '2025-10-17', completed: false, tags: ['meeting', 'presentation'], createdAt: '2025-10-14', reminderNumber: 3, reminderUnit: 'hours' },
+  { id: 6, title: 'Gym workout', priority: false, dueDate: '2025-10-15', completed: false, tags: ['fitness', 'exercise'], createdAt: '2025-10-13' },
+  { id: 7, title: 'Pay utility bills', priority: true, dueDate: '2025-10-16', completed: false, tags: ['bills', 'payment'], createdAt: '2025-10-12', reminderNumber: 1, reminderUnit: 'days' },
+  { id: 8, title: 'Book dentist appointment', priority: false, dueDate: '2025-10-22', completed: false, tags: ['appointment', 'medical'], createdAt: '2025-10-14' },
+  { id: 9, title: 'Fix bug in login module', priority: true, dueDate: '2025-10-16', completed: true, tags: ['bug', 'urgent'], createdAt: '2025-10-10' },
+  { id: 10, title: 'Plan weekend trip', priority: false, dueDate: '2025-10-19', completed: false, tags: ['travel', 'planning'], createdAt: '2025-10-13' },
+  { id: 11, title: 'Call mom', priority: false, dueDate: null, completed: false, tags: ['family', 'call'], createdAt: '2025-10-14' },
+  { id: 12, title: 'Database backup', priority: true, dueDate: '2025-10-17', completed: false, tags: ['maintenance', 'backup'], createdAt: '2025-10-11', reminderNumber: 2, reminderUnit: 'weeks' },
+  { id: 13, title: 'Read book chapter', priority: false, dueDate: null, completed: false, tags: ['reading', 'learning'], createdAt: '2025-10-12' },
+  { id: 14, title: 'Client presentation', priority: true, dueDate: '2025-10-18', completed: false, tags: ['client', 'demo'], createdAt: '2025-10-13', reminderNumber: 30, reminderUnit: 'minutes' },
+  { id: 15, title: 'Car maintenance', priority: false, dueDate: '2025-10-21', completed: false, tags: ['car', 'maintenance'], createdAt: '2025-10-14' },
+  { id: 16, title: 'Write blog post', priority: false, dueDate: null, completed: false, tags: ['writing', 'blog'], createdAt: '2025-10-13' },
+  { id: 17, title: 'Security audit', priority: true, dueDate: '2025-10-19', completed: false, tags: ['security', 'audit'], createdAt: '2025-10-12', reminderNumber: 1, reminderUnit: 'months' },
+  { id: 18, title: 'Organize closet', priority: false, dueDate: null, completed: false, tags: ['home', 'organizing'], createdAt: '2025-10-14' },
+  { id: 19, title: 'Submit expense report', priority: false, dueDate: '2025-10-17', completed: false, tags: ['finance', 'admin'], createdAt: '2025-10-11' },
+  { id: 20, title: 'Learn TypeScript', priority: false, dueDate: '2025-10-22', completed: false, tags: ['learning', 'coding'], createdAt: '2025-10-13' }
 ];
 
 export const initialNotes: Note[] = [

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Task, Note } from '../types';
 import { db } from '../utils/database';
 import { exportToJSON, exportToCSV, importFromJSON } from '../utils/exportImport';
-import { generateNextOccurrence, shouldGenerateInstances } from '../utils/recurringTasks';
+import { generateNextOccurrence, shouldGenerateNextInstance } from '../utils/recurringTasks';
 import TaskCard from './TaskCard';
 import NoteCard from './NoteCard';
 import SearchBar from './SearchBar';
@@ -32,8 +32,8 @@ const AppLayout: React.FC = () => {
   const [taskFilters, setTaskFilters] = useState<{
     priority: string[];
     status: string[];
-    category: string[];
-  }>({ priority: [], status: [], category: [] });
+  }>({ priority: [], status: [] });
+
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [dueReminders, setDueReminders] = useState<Task[]>([]);
@@ -86,34 +86,26 @@ const AppLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, [tasks]);
 
-  // Generate recurring task instances every hour
+  // Generate next recurring task instance on app start and check daily
   useEffect(() => {
     const generateRecurringInstances = async () => {
-      const recurringTasks = tasks.filter(t => t.isRecurring && shouldGenerateInstances(t));
+      const recurringTasks = tasks.filter(t => t.isRecurring && shouldGenerateNextInstance(t));
       
       for (const task of recurringTasks) {
-        let currentDate = task.lastGeneratedDate 
+        // Determine the last date from which to generate
+        let lastDate = task.lastGeneratedDate 
           ? new Date(task.lastGeneratedDate) 
-          : new Date(task.dueDate);
+          : task.dueDate 
+            ? new Date(task.dueDate)
+            : new Date(task.createdAt);
         
-        const now = new Date();
-        const daysAhead = 30;
-        const generateUntil = new Date(now);
-        generateUntil.setDate(generateUntil.getDate() + daysAhead);
+        // Generate only the next instance
+        const nextInstance = generateNextOccurrence(task, lastDate);
         
-        let instancesGenerated = 0;
-        while (currentDate < generateUntil && instancesGenerated < 10) {
-          const nextInstance = generateNextOccurrence(task, currentDate);
-          if (!nextInstance) break;
-          
+        if (nextInstance) {
           await db.addTask(nextInstance);
-          currentDate = new Date(nextInstance.dueDate);
-          instancesGenerated++;
-        }
-        
-        if (instancesGenerated > 0) {
           await db.updateTask(task.id, { 
-            lastGeneratedDate: currentDate.toISOString().split('T')[0] 
+            lastGeneratedDate: nextInstance.dueDate 
           });
         }
       }
@@ -124,9 +116,11 @@ const AppLayout: React.FC = () => {
     };
 
     generateRecurringInstances();
-    const interval = setInterval(generateRecurringInstances, 3600000); // Check every hour
+    // Check once per day (every 24 hours)
+    const interval = setInterval(generateRecurringInstances, 86400000);
     return () => clearInterval(interval);
   }, [tasks]);
+
 
 
   const loadData = async () => {
@@ -141,10 +135,16 @@ const AppLayout: React.FC = () => {
   const handleToggleTask = async (id: number) => {
     const task = tasks.find(t => t.id === id);
     if (task) {
+      // Prevent toggling recurring task templates - only instances can be completed
+      const isRecurringTemplate = task.isRecurring && !task.parentTaskId;
+      if (isRecurringTemplate) {
+        return; // Do nothing for recurring templates
+      }
       await db.updateTask(id, { completed: !task.completed });
       loadData();
     }
   };
+
 
   const handleDeleteTask = async (id: number) => {
     await db.deleteTask(id);
@@ -213,15 +213,19 @@ const AppLayout: React.FC = () => {
 
   const getFilteredTasks = () => {
     return tasks.filter(task => {
-      if (taskFilters.priority.length > 0 && !taskFilters.priority.includes(task.priority)) return false;
+      if (taskFilters.priority.length > 0) {
+        const taskPriorityStr = task.priority ? 'high' : 'normal';
+        if (!taskFilters.priority.includes(taskPriorityStr)) return false;
+      }
       if (taskFilters.status.length > 0) {
         const isCompleted = task.completed;
         if (!taskFilters.status.includes(isCompleted ? 'completed' : 'pending')) return false;
       }
-      if (taskFilters.category.length > 0 && !taskFilters.category.includes(task.category)) return false;
       return true;
     });
   };
+
+
 
   const handleExportJSON = () => {
     exportToJSON(tasks, notes);
@@ -293,10 +297,11 @@ const AppLayout: React.FC = () => {
     }
   }, [isTaskModalOpen]);
 
-  const uniqueCategories = Array.from(new Set(tasks.map(t => t.category)));
   const completedTasks = tasks.filter(t => t.completed).length;
   const pendingTasks = tasks.filter(t => !t.completed).length;
-  const highPriorityTasks = tasks.filter(t => t.priority === 'high' && !t.completed).length;
+  const highPriorityTasks = tasks.filter(t => t.priority === true && !t.completed).length;
+
+
 
 
 
@@ -452,11 +457,12 @@ const AppLayout: React.FC = () => {
               </button>
             </div>
             
+            
             <TaskFilters
               activeFilters={taskFilters}
               onFilterChange={handleFilterChange}
-              categories={uniqueCategories}
             />
+
 
             {getFilteredTasks().map(task => (
               <TaskCard
