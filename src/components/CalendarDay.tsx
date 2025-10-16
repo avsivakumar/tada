@@ -8,6 +8,8 @@ interface CalendarDayProps {
   isToday: boolean;
   onDayClick: (date: Date) => void;
   onTaskDrop: (taskId: number, newDate: Date) => void;
+  onTaskClick?: (task: Task) => void;
+  viewMode?: 'month' | 'week' | 'day';
 }
 
 const CalendarDay: React.FC<CalendarDayProps> = ({ 
@@ -16,7 +18,9 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
   isCurrentMonth, 
   isToday,
   onDayClick,
-  onTaskDrop
+  onTaskDrop,
+  onTaskClick,
+  viewMode = 'month'
 }) => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -34,6 +38,13 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
     onTaskDrop(taskId, date);
   };
 
+  const handleTaskClick = (e: React.MouseEvent, task: Task) => {
+    e.stopPropagation();
+    if (onTaskClick) {
+      onTaskClick(task);
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'bg-red-500';
@@ -43,9 +54,11 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
     }
   };
 
+  const minHeight = viewMode === 'day' ? 'min-h-96' : viewMode === 'week' ? 'min-h-32' : 'min-h-24';
+
   return (
     <div
-      className={`min-h-24 border border-gray-200 p-2 cursor-pointer transition-colors ${
+      className={`${minHeight} border border-gray-200 p-2 cursor-pointer transition-colors ${
         !isCurrentMonth ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
       } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
       onClick={() => onDayClick(date)}
@@ -53,24 +66,26 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className={`text-sm font-semibold mb-1 ${!isCurrentMonth ? 'text-gray-400' : isToday ? 'text-blue-600' : 'text-gray-700'}`}>
-        {date.getDate()}
+      <div className={`text-sm font-semibold mb-2 ${!isCurrentMonth ? 'text-gray-400' : isToday ? 'text-blue-600' : 'text-gray-700'}`}>
+        {viewMode === 'day' ? date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : date.getDate()}
       </div>
       <div className="space-y-1">
-        {tasks.slice(0, 3).map(task => (
+        {tasks.map(task => (
           <div
             key={task.id}
             draggable
             onDragStart={(e) => e.dataTransfer.setData('taskId', task.id.toString())}
-            className={`text-xs p-1 rounded truncate cursor-move ${getPriorityColor(task.priority)} text-white`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => handleTaskClick(e, task)}
+            className={`text-xs p-2 rounded cursor-pointer hover:opacity-80 ${getPriorityColor(task.priority)} text-white ${
+              viewMode === 'day' ? '' : 'truncate'
+            }`}
           >
-            {task.title}
+            <div className={`font-semibold ${task.completed ? 'line-through' : ''}`}>{task.title}</div>
+            {viewMode === 'day' && task.description && (
+              <div className="text-xs mt-1 opacity-90">{task.description}</div>
+            )}
           </div>
         ))}
-        {tasks.length > 3 && (
-          <div className="text-xs text-gray-500">+{tasks.length - 3} more</div>
-        )}
       </div>
     </div>
   );

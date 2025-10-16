@@ -546,8 +546,10 @@ const AppLayout: React.FC = () => {
             tasks={tasks}
             onTaskReschedule={handleTaskReschedule}
             onDateClick={handleCalendarDateClick}
+            onTaskClick={handleTaskClick}
           />
         )}
+
 
       </main>
 
