@@ -123,10 +123,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskReschedule, on
     }
 
     return (
-      <div className={`grid ${viewMode === 'day' ? 'grid-cols-1' : 'grid-cols-7'}`}>
+      <div className={`grid gap-1 ${viewMode === 'day' ? 'grid-cols-1' : 'grid-cols-7'}`}>
         {days.map((date, index) => (
           <CalendarDay
-            key={index}
+            key={`${date.toISOString()}-${index}`}
             date={date}
             tasks={getTasksForDate(date)}
             isCurrentMonth={viewMode === 'month' ? isCurrentMonth(date) : true}
@@ -140,6 +140,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onTaskReschedule, on
       </div>
     );
   };
+
 
   return (
     <div className="space-y-4">

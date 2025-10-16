@@ -54,20 +54,24 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
     }
   };
 
-  const minHeight = viewMode === 'day' ? 'min-h-96' : viewMode === 'week' ? 'min-h-32' : 'min-h-24';
+  const minHeight = viewMode === 'day' ? 'min-h-[400px]' : viewMode === 'week' ? 'min-h-[150px]' : 'min-h-[100px]';
 
   return (
     <div
       className={`${minHeight} border border-gray-200 p-2 cursor-pointer transition-colors ${
         !isCurrentMonth ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
-      } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+      } ${isToday ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
       onClick={() => onDayClick(date)}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       <div className={`text-sm font-semibold mb-2 ${!isCurrentMonth ? 'text-gray-400' : isToday ? 'text-blue-600' : 'text-gray-700'}`}>
-        {viewMode === 'day' ? date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : date.getDate()}
+        {viewMode === 'day' ? (
+          <div className="text-xl">{date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+        ) : (
+          date.getDate()
+        )}
       </div>
       <div className="space-y-1">
         {tasks.map(task => (
@@ -76,8 +80,8 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
             draggable
             onDragStart={(e) => e.dataTransfer.setData('taskId', task.id.toString())}
             onClick={(e) => handleTaskClick(e, task)}
-            className={`text-xs p-2 rounded cursor-pointer hover:opacity-80 ${getPriorityColor(task.priority)} text-white ${
-              viewMode === 'day' ? '' : 'truncate'
+            className={`text-xs p-2 rounded cursor-pointer hover:opacity-80 transition-opacity ${getPriorityColor(task.priority)} text-white ${
+              viewMode === 'day' ? 'text-sm' : 'truncate'
             }`}
           >
             <div className={`font-semibold ${task.completed ? 'line-through' : ''}`}>{task.title}</div>
@@ -89,6 +93,7 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
       </div>
     </div>
   );
+
 };
 
 export default CalendarDay;
