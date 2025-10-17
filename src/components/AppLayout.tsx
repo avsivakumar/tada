@@ -126,7 +126,8 @@ const AppLayout: React.FC = () => {
   // Generate instances when it's time based on recurrence pattern
   useEffect(() => {
     const generateRecurringInstances = async () => {
-      const recurringTasks = tasks.filter(t => t.isRecurring);
+      // Only generate instances for active (not completed) recurring tasks
+      const recurringTasks = tasks.filter(t => t.isRecurring && !t.completed);
       
       for (const task of recurringTasks) {
         // Check if it's time to generate the next instance
@@ -154,6 +155,7 @@ const AppLayout: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [tasks]);
+
 
   // Refresh data when returning to dashboard
   useEffect(() => {
@@ -279,9 +281,13 @@ const AppLayout: React.FC = () => {
       }
       
       // Apply recurring tasks filter
-      if (showRecurringOnly && !task.isRecurring) {
-        return false;
+      if (showRecurringOnly) {
+        // Show only recurring templates (not instances)
+        const isRecurringTemplate = task.isRecurring && !task.parentTaskId;
+        if (!isRecurringTemplate) return false;
       }
+      // When NOT showing recurring only, show BOTH templates and instances (no filter)
+
       
       // Apply date range filter based on createdAt
       if (dateFrom && task.createdAt < dateFrom) {
@@ -312,6 +318,7 @@ const AppLayout: React.FC = () => {
       return true;
     });
   };
+
 
 
 
@@ -406,22 +413,41 @@ const AppLayout: React.FC = () => {
 
 
   // Get tasks to display based on selected stat view
+  // Get tasks to display based on selected stat view
   const getDisplayTasks = () => {
     let filteredTasks: Task[] = [];
     
     if (selectedStatView === 'due') {
-      // Show only incomplete tasks with due date <= today
+      // Show only incomplete tasks with due date <= today, exclude recurring templates
       filteredTasks = tasks.filter(t => {
+        // Exclude recurring templates (show only instances)
+        const isRecurringTemplate = t.isRecurring && !t.parentTaskId;
+        if (isRecurringTemplate) return false;
+        
         if (!t.dueDate || t.dueDate > today) return false;
         return !t.completed; // Exclude all completed tasks
       });
     } else if (selectedStatView === 'urgent') {
-      filteredTasks = tasks.filter(t => t.priority === true && !t.completed);
+      // Exclude recurring templates from urgent tasks
+      filteredTasks = tasks.filter(t => {
+        const isRecurringTemplate = t.isRecurring && !t.parentTaskId;
+        if (isRecurringTemplate) return false;
+        return t.priority === true && !t.completed;
+      });
     } else if (selectedStatView === 'pending') {
-      filteredTasks = tasks.filter(t => !t.dueDate && !t.isRecurring && !t.completed);
-
+      // Exclude recurring templates from pending work
+      filteredTasks = tasks.filter(t => {
+        const isRecurringTemplate = t.isRecurring && !t.parentTaskId;
+        if (isRecurringTemplate) return false;
+        return !t.dueDate && !t.completed;
+      });
     } else if (selectedStatView === 'completedToday') {
-      filteredTasks = tasks.filter(t => t.completed && t.completionDate === today);
+      // Exclude recurring templates from completed today
+      filteredTasks = tasks.filter(t => {
+        const isRecurringTemplate = t.isRecurring && !t.parentTaskId;
+        if (isRecurringTemplate) return false;
+        return t.completed && t.completionDate === today;
+      });
     }
 
     
@@ -433,6 +459,7 @@ const AppLayout: React.FC = () => {
       return a.dueDate.localeCompare(b.dueDate);
     });
   };
+
 
 
 

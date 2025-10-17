@@ -95,8 +95,6 @@ export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null
 export const shouldGenerateNextInstance = (task: Task, existingTasks: Task[]): boolean => {
   if (!task.isRecurring || !task.recurrencePattern) return false;
   
-  // Allow multiple pending instances - don't check for existing pending instances
-  
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
@@ -128,7 +126,17 @@ export const shouldGenerateNextInstance = (task: Task, existingTasks: Task[]): b
   
   nextScheduledDate.setHours(0, 0, 0, 0);
   
-  // Generate instance when the scheduled date arrives (today or past)
-  return nextScheduledDate <= now;
+  // Only generate if the scheduled date has arrived
+  if (nextScheduledDate > now) return false;
+  
+  // Check if an instance already exists for this date
+  const nextDateStr = nextScheduledDate.toISOString().split('T')[0];
+  const instanceExists = existingTasks.some(t => 
+    t.parentTaskId === task.id && t.dueDate === nextDateStr
+  );
+  
+  // Only generate if no instance exists for this date
+  return !instanceExists;
 };
+
 
