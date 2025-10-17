@@ -11,6 +11,7 @@ interface TaskModalProps {
 
 const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, selectedDate }) => {
   const [title, setTitle] = useState('');
+  const [completed, setCompleted] = useState(false);
   const [priority, setPriority] = useState(false);
   const [dueDate, setDueDate] = useState<string>('');
   const [dueTime, setDueTime] = useState<string>('');
@@ -28,9 +29,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
   const [recurrenceDayOfYear, setRecurrenceDayOfYear] = useState<number>(1);
 
 
+
   useEffect(() => {
     if (isOpen && task) {
       setTitle(task.title);
+      setCompleted(task.completed);
       setPriority(task.priority);
       setDueDate(task.dueDate || '');
       setDueTime(task.dueTime || '');
@@ -47,9 +50,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
       setRecurrenceMonth(task.recurrenceMonth ?? 1);
       setRecurrenceDayOfYear(task.recurrenceDayOfYear ?? 1);
 
+
     } else if (isOpen && !task) {
       setTitle('');
+      setCompleted(false);
       setPriority(false);
+
       if (selectedDate) {
         const year = selectedDate.getFullYear();
         const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
@@ -86,12 +92,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
       reminderTime = reminder.toISOString();
     }
 
+    // Set completionDate if task is being marked as completed
+    const completionDate = completed && !task?.completed ? new Date().toISOString().split('T')[0] : task?.completionDate;
+
     onSave({
       title,
       priority,
       dueDate: dueDate || null,
       dueTime: dueTime || undefined,
-      completed: task?.completed || false,
+      completed,
+      completionDate,
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       reminderNumber: hasReminder && reminderNumber > 0 ? reminderNumber : undefined,
       reminderUnit: hasReminder && reminderNumber > 0 ? reminderUnit : undefined,
@@ -107,7 +117,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
       recurrenceDayOfYear: isRecurring && recurrencePattern === 'yearly' ? recurrenceDayOfYear : undefined,
       lastGeneratedDate: task?.lastGeneratedDate,
       parentTaskId: task?.parentTaskId,
+      active: true,
     }, task?.id);
+
+
 
     onClose();
   };
@@ -116,22 +129,42 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             {task ? 'Edit Task' : 'New Task'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title" required
-              className="w-full px-4 py-3 text-lg border rounded-lg focus:ring-2 focus:ring-teal-500" />
-            
+            <div className="flex gap-4 items-start">
+              <div className="flex-1">
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Task title" required
+                  className="w-full px-4 py-3 text-lg border rounded-lg focus:ring-2 focus:ring-teal-500" />
+              </div>
+
+              {task && (
+                <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-3 rounded-lg border border-gray-200 whitespace-nowrap">
+                  <input type="checkbox" checked={completed}
+                    onChange={(e) => setCompleted(e.target.checked)}
+                    className="w-5 h-5 text-teal-600 rounded" />
+                  <span className="font-semibold text-gray-700">Mark as Completed</span>
+                </label>
+              )}
+            </div>
+
+            {task && completed && task.completionDate && (
+              <div className="text-sm text-gray-600 bg-green-50 p-2 rounded border border-green-200">
+                Completed on: {new Date(task.completionDate).toLocaleDateString()} at {new Date(task.completionDate).toLocaleTimeString()}
+              </div>
+            )}
+
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={priority}
                 onChange={(e) => setPriority(e.target.checked)}
                 className="w-5 h-5 text-teal-600 rounded" />
               <span className="font-semibold text-gray-700">High Priority</span>
             </label>
+
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>

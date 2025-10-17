@@ -1,6 +1,5 @@
 import Dexie, { Table } from 'dexie';
 import { Task, Note } from '../types';
-import { initialTasks, initialNotes } from './mockData';
 
 // IndexedDB database using Dexie
 class TadaDatabase extends Dexie {
@@ -9,12 +8,23 @@ class TadaDatabase extends Dexie {
 
   constructor() {
     super('TadaDB');
-    // Version 2: Added reminder and recurring task fields
-    this.version(2).stores({
-      tasks: '++id, title, priority, dueDate, completed, createdAt, reminderNumber, reminderUnit, reminderTime, isRecurring',
-      notes: '++id, title, category, createdAt, updatedAt'
+    // Version 4: Added active field for soft delete
+    this.version(4).stores({
+      tasks: '++id, title, priority, dueDate, completed, completionDate, createdAt, reminderNumber, reminderUnit, reminderTime, isRecurring, active',
+      notes: '++id, title, category, createdAt, updatedAt, active'
+    }).upgrade(tx => {
+      // Set active=true for all existing records
+      return tx.table('tasks').toCollection().modify(task => {
+        if (task.active === undefined) task.active = true;
+      }).then(() => {
+        return tx.table('notes').toCollection().modify(note => {
+          if (note.active === undefined) note.active = true;
+        });
+      });
     });
   }
+
+
 
 }
 
@@ -25,17 +35,7 @@ class DatabaseService {
 
   async connect(): Promise<boolean> {
     try {
-      // Check if database is empty and seed with initial data
-      const taskCount = await dexieDb.tasks.count();
-      const noteCount = await dexieDb.notes.count();
-      
-      if (taskCount === 0) {
-        await dexieDb.tasks.bulkAdd(initialTasks);
-      }
-      if (noteCount === 0) {
-        await dexieDb.notes.bulkAdd(initialNotes);
-      }
-      
+      // Database starts empty - no mock data
       this.connected = true;
       return true;
     } catch (error) {
@@ -44,13 +44,17 @@ class DatabaseService {
     }
   }
 
+
   async getTasks(): Promise<Task[]> {
-    return await dexieDb.tasks.toArray();
+    const tasks = await dexieDb.tasks.toArray();
+    return tasks.filter(t => t.active !== false); // Only return active tasks
   }
 
   async getNotes(): Promise<Note[]> {
-    return await dexieDb.notes.toArray();
+    const notes = await dexieDb.notes.toArray();
+    return notes.filter(n => n.active !== false); // Only return active notes
   }
+
 
   async addTask(task: Omit<Task, 'id'>): Promise<Task> {
     const id = await dexieDb.tasks.add(task as Task);
@@ -74,31 +78,39 @@ class DatabaseService {
   }
 
   async deleteTask(id: number): Promise<boolean> {
-    await dexieDb.tasks.delete(id);
+    // Soft delete: set active to false instead of removing from DB
+    await dexieDb.tasks.update(id, { active: false });
     return true;
   }
 
   async deleteNote(id: number): Promise<boolean> {
-    await dexieDb.notes.delete(id);
+    // Soft delete: set active to false instead of removing from DB
+    await dexieDb.notes.update(id, { active: false });
     return true;
   }
+
 
   async searchTasks(query: string): Promise<Task[]> {
     const q = query.toLowerCase();
     return await dexieDb.tasks.filter(t => 
-      t.title.toLowerCase().includes(q) || 
-      t.tags.some(tag => tag.toLowerCase().includes(q))
+      t.active !== false && (
+        t.title.toLowerCase().includes(q) || 
+        t.tags.some(tag => tag.toLowerCase().includes(q))
+      )
     ).toArray();
   }
 
   async searchNotes(query: string): Promise<Note[]> {
     const q = query.toLowerCase();
     return await dexieDb.notes.filter(n => 
-      n.title.toLowerCase().includes(q) || 
-      n.content.toLowerCase().includes(q) ||
-      n.tags.some(tag => tag.toLowerCase().includes(q))
+      n.active !== false && (
+        n.title.toLowerCase().includes(q) || 
+        n.content.toLowerCase().includes(q) ||
+        n.tags.some(tag => tag.toLowerCase().includes(q))
+      )
     ).toArray();
   }
+
 }
 
 export const db = new DatabaseService();

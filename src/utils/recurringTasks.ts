@@ -7,30 +7,34 @@ export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null
   let baseDate: Date;
   if (fromDate) {
     baseDate = fromDate;
-  } else if (task.dueDate) {
-    baseDate = new Date(task.dueDate);
   } else if (task.lastGeneratedDate) {
     baseDate = new Date(task.lastGeneratedDate);
+  } else if (task.dueDate) {
+    baseDate = new Date(task.dueDate);
   } else {
-    // For recurring tasks without due date, start from creation date
-    baseDate = new Date(task.createdAt);
+    // For new recurring tasks without due date, start from today
+    baseDate = new Date();
   }
 
   const nextDate = new Date(baseDate);
 
-  switch (task.recurrencePattern) {
-    case 'daily':
-      nextDate.setDate(nextDate.getDate() + 1);
-      break;
-    case 'weekly':
-      nextDate.setDate(nextDate.getDate() + 7);
-      break;
-    case 'monthly':
-      nextDate.setMonth(nextDate.getMonth() + 1);
-      break;
-    case 'yearly':
-      nextDate.setFullYear(nextDate.getFullYear() + 1);
-      break;
+  // If this is the first instance and no lastGeneratedDate, use the base date as-is
+  // Otherwise, increment based on pattern
+  if (task.lastGeneratedDate || fromDate) {
+    switch (task.recurrencePattern) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + 1);
+        break;
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + 7);
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        break;
+      case 'yearly':
+        nextDate.setFullYear(nextDate.getFullYear() + 1);
+        break;
+    }
   }
 
   // Check if we've passed the end date
@@ -38,16 +42,36 @@ export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null
     return null;
   }
 
+  // Format date for title
+  const dateStr = nextDate.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+  
+  // For daily tasks, also add time
+  let titleSuffix = dateStr;
+  if (task.recurrencePattern === 'daily') {
+    const timeStr = nextDate.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    titleSuffix = `${dateStr} ${timeStr}`;
+  }
+
   // Create new task instance
   const newTask: Task = {
     ...task,
     id: Date.now() + Math.random(), // Temporary ID
+    title: `${task.title} - ${titleSuffix}`,
     dueDate: nextDate.toISOString().split('T')[0],
     completed: false,
     parentTaskId: task.id,
     isRecurring: false, // Instances are not recurring themselves
     createdAt: new Date().toISOString().split('T')[0],
   };
+
 
   // Update reminder time if it exists
   if (task.reminderNumber && task.reminderUnit && newTask.dueDate) {
@@ -68,23 +92,43 @@ export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null
 };
 
 
-export const shouldGenerateNextInstance = (task: Task): boolean => {
+export const shouldGenerateNextInstance = (task: Task, existingTasks: Task[]): boolean => {
   if (!task.isRecurring || !task.recurrencePattern) return false;
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Allow multiple pending instances - don't check for existing pending instances
   
-  // Determine the last generated date
-  let lastGenerated: Date;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  // Determine when the next instance should be scheduled
+  let nextScheduledDate: Date;
+  
   if (task.lastGeneratedDate) {
-    lastGenerated = new Date(task.lastGeneratedDate);
-  } else if (task.dueDate) {
-    lastGenerated = new Date(task.dueDate);
+    // Calculate next occurrence from last generated date
+    nextScheduledDate = new Date(task.lastGeneratedDate);
+    
+    switch (task.recurrencePattern) {
+      case 'daily':
+        nextScheduledDate.setDate(nextScheduledDate.getDate() + 1);
+        break;
+      case 'weekly':
+        nextScheduledDate.setDate(nextScheduledDate.getDate() + 7);
+        break;
+      case 'monthly':
+        nextScheduledDate.setMonth(nextScheduledDate.getMonth() + 1);
+        break;
+      case 'yearly':
+        nextScheduledDate.setFullYear(nextScheduledDate.getFullYear() + 1);
+        break;
+    }
   } else {
-    lastGenerated = new Date(task.createdAt);
+    // First instance - use due date or today
+    nextScheduledDate = task.dueDate ? new Date(task.dueDate) : new Date();
   }
-  lastGenerated.setHours(0, 0, 0, 0);
   
-  // Only generate if the last generated date is today or in the past
-  return lastGenerated <= today;
+  nextScheduledDate.setHours(0, 0, 0, 0);
+  
+  // Generate instance when the scheduled date arrives (today or past)
+  return nextScheduledDate <= now;
 };
+

@@ -5,6 +5,9 @@ export interface Task {
   dueDate: string | null; // null means pending task without deadline
   dueTime?: string; // Optional time for due date (HH:MM format)
   completed: boolean;
+  completionDate?: string; // ISO date string when task was marked complete
+  active: boolean; // true = active, false = soft deleted (default: true)
+
   tags: string[];
   createdAt: string;
   reminderNumber?: number; // Number for reminder (e.g., 2 for "2 hours before")
@@ -26,6 +29,7 @@ export interface Task {
 
 
 
+
 export interface Note {
   id: number;
   title: string;
@@ -34,7 +38,9 @@ export interface Note {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  active: boolean; // true = active, false = soft deleted (default: true)
 }
+
 
 export interface DatabaseConfig {
   host: string;
