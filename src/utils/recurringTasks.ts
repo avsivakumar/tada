@@ -121,12 +121,17 @@ export const shouldGenerateNextInstance = (task: Task, existingTasks: Task[]): b
     }
   } else {
     // First instance - use due date or today
-    nextScheduledDate = task.dueDate ? new Date(task.dueDate) : new Date();
+    if (task.dueDate) {
+      nextScheduledDate = new Date(task.dueDate);
+    } else {
+      // No due date set, use today
+      nextScheduledDate = new Date();
+    }
   }
   
   nextScheduledDate.setHours(0, 0, 0, 0);
   
-  // Only generate if the scheduled date has arrived
+  // Only generate if the scheduled date has arrived or passed
   if (nextScheduledDate > now) return false;
   
   // Check if an instance already exists for this date
@@ -138,5 +143,8 @@ export const shouldGenerateNextInstance = (task: Task, existingTasks: Task[]): b
   // Only generate if no instance exists for this date
   return !instanceExists;
 };
+
+
+
 
 

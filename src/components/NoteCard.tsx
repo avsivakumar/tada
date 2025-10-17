@@ -35,12 +35,11 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, onDelete, onClick }) => {
       <div className="bg-white rounded-lg shadow-md p-4 mb-3 border-l-4 border-teal-500 hover:shadow-lg transition-shadow">
         <div className="flex items-start gap-3">
           <div className="flex-1 cursor-pointer" onClick={() => onClick(note)}>
-            <h3 className="font-semibold text-gray-900 mb-2">{note.title}</h3>
+            {note.topic && (
+              <h3 className="font-semibold text-gray-900 mb-2">{note.topic}</h3>
+            )}
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">{note.content}</p>
             <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">
-                {note.category}
-              </span>
               {note.tags.map((tag, idx) => (
                 <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
                   #{tag}
@@ -65,7 +64,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, onDelete, onClick }) => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Note</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{note.title}"? This action cannot be undone.
+              Are you sure you want to delete this note? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

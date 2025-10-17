@@ -28,6 +28,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
   const [recurrenceMonth, setRecurrenceMonth] = useState<number>(1);
   const [recurrenceDayOfYear, setRecurrenceDayOfYear] = useState<number>(1);
 
+  // Check if this is a recurring instance (not a template)
+  const isInstance = task?.parentTaskId !== undefined && task?.parentTaskId !== null;
+
 
 
   useEffect(() => {
@@ -76,6 +79,36 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // For instances, only allow updating the completed status
+    if (isInstance) {
+      onSave({
+        title: task!.title,
+        priority: task!.priority,
+        dueDate: task!.dueDate,
+        dueTime: task!.dueTime,
+        completed,
+        completionDate: completed && !task?.completed ? new Date().toISOString().split('T')[0] : task?.completionDate,
+        tags: task!.tags,
+        reminderNumber: task!.reminderNumber,
+        reminderUnit: task!.reminderUnit,
+        reminderTime: task!.reminderTime,
+        snoozedUntil: task?.snoozedUntil,
+        isRecurring: task!.isRecurring,
+        recurrencePattern: task!.recurrencePattern,
+        recurrenceEndDate: task!.recurrenceEndDate,
+        recurrenceTime: task!.recurrenceTime,
+        recurrenceDayOfWeek: task!.recurrenceDayOfWeek,
+        recurrenceDayOfMonth: task!.recurrenceDayOfMonth,
+        recurrenceMonth: task!.recurrenceMonth,
+        recurrenceDayOfYear: task!.recurrenceDayOfYear,
+        lastGeneratedDate: task?.lastGeneratedDate,
+        parentTaskId: task?.parentTaskId,
+        active: true,
+      }, task?.id);
+      onClose();
+      return;
+    }
     
     let reminderTime: string | undefined;
     if (dueDate && hasReminder && reminderNumber > 0) {
@@ -127,19 +160,28 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
 
   if (!isOpen) return null;
 
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            {task ? 'Edit Task' : 'New Task'}
+            {task ? (isInstance ? 'Edit Task Instance' : 'Edit Task') : 'New Task'}
           </h2>
+          {isInstance && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> This is a recurring task instance. Only completion status can be modified. To edit task details, modify the recurring template.
+              </p>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4 items-start">
               <div className="flex-1">
                 <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                   placeholder="Task title" required
-                  className="w-full px-4 py-3 text-lg border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                  disabled={isInstance}
+                  className="w-full px-4 py-3 text-lg border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500" />
               </div>
 
               {task && (
@@ -161,23 +203,25 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={priority}
                 onChange={(e) => setPriority(e.target.checked)}
-                className="w-5 h-5 text-teal-600 rounded" />
+                disabled={isInstance}
+                className="w-5 h-5 text-teal-600 rounded disabled:opacity-50 disabled:cursor-not-allowed" />
               <span className="font-semibold text-gray-700">High Priority</span>
             </label>
+
 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
               <div className="flex gap-2">
                 <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-                  disabled={isRecurring}
+                  disabled={isRecurring || isInstance}
                   className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500" />
                 <input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)}
-                  disabled={isRecurring}
+                  disabled={isRecurring || isInstance}
                   className="w-32 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500" />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {isRecurring ? 'Due date is disabled for recurring tasks' : 'Time is optional'}
+                {isRecurring ? 'Due date is disabled for recurring tasks' : isInstance ? 'Due date cannot be changed for instances' : 'Time is optional'}
               </p>
             </div>
 
@@ -195,16 +239,20 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                       setDueTime('');
                     }
                   }}
-                  className="w-4 h-4 text-teal-600" />
+                  disabled={isInstance}
+                  className="w-4 h-4 text-teal-600 disabled:opacity-50 disabled:cursor-not-allowed" />
                 <span className="font-semibold text-gray-700">Recurring Task</span>
               </label>
 
-              
-              {isRecurring && (
+
+              {/* Show recurring details if it's a recurring task (template or instance) */}
+              {(isRecurring || (task?.isRecurring && isInstance)) && (
+
                 <div className="space-y-3 pl-6">
                   <select value={recurrencePattern}
                     onChange={(e) => setRecurrencePattern(e.target.value as any)}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
+                    disabled={isInstance}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed">
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
@@ -216,7 +264,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                       <label className="block text-sm font-medium text-gray-700 mb-1">Time of Day</label>
                       <input type="time" value={recurrenceTime}
                         onChange={(e) => setRecurrenceTime(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                        disabled={isInstance}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
                     </div>
                   )}
 
@@ -225,7 +274,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                       <label className="block text-sm font-medium text-gray-700 mb-1">Day of Week</label>
                       <select value={recurrenceDayOfWeek}
                         onChange={(e) => setRecurrenceDayOfWeek(Number(e.target.value))}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
+                        disabled={isInstance}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed">
                         <option value={0}>Sunday</option>
                         <option value={1}>Monday</option>
                         <option value={2}>Tuesday</option>
@@ -242,7 +292,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                       <label className="block text-sm font-medium text-gray-700 mb-1">Day of Month</label>
                       <input type="number" min="1" max="31" value={recurrenceDayOfMonth}
                         onChange={(e) => setRecurrenceDayOfMonth(Number(e.target.value))}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                        disabled={isInstance}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
                     </div>
                   )}
 
@@ -252,7 +303,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                         <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
                         <select value={recurrenceMonth}
                           onChange={(e) => setRecurrenceMonth(Number(e.target.value))}
-                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
+                          disabled={isInstance}
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed">
                           <option value={1}>January</option>
                           <option value={2}>February</option>
                           <option value={3}>March</option>
@@ -271,7 +323,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                         <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
                         <input type="number" min="1" max="31" value={recurrenceDayOfYear}
                           onChange={(e) => setRecurrenceDayOfYear(Number(e.target.value))}
-                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                          disabled={isInstance}
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
                       </div>
                     </div>
                   )}
@@ -279,7 +332,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                   <input type="date" value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
                     placeholder="End date (optional)"
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                    disabled={isInstance}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
                   <p className="text-xs text-gray-500">Leave end date empty for indefinite recurrence</p>
                 </div>
               )}
@@ -291,7 +345,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                 <label className="flex items-center gap-2 mb-3">
                   <input type="checkbox" checked={hasReminder}
                     onChange={(e) => setHasReminder(e.target.checked)}
-                    className="w-4 h-4 text-teal-600" />
+                    disabled={isInstance}
+                    className="w-4 h-4 text-teal-600 disabled:opacity-50 disabled:cursor-not-allowed" />
                   <span className="font-semibold text-gray-700">Remind Me</span>
                 </label>
                 
@@ -300,10 +355,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                     <div className="flex gap-2">
                       <input type="number" min="1" value={reminderNumber}
                         onChange={(e) => setReminderNumber(Number(e.target.value))}
-                        className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+                        disabled={isInstance}
+                        className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
                       <select value={reminderUnit}
                         onChange={(e) => setReminderUnit(e.target.value as any)}
-                        className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500">
+                        disabled={isInstance}
+                        className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed">
                         <option value="minutes">Minutes</option>
                         <option value="hours">Hours</option>
                         <option value="days">Days</option>
@@ -321,7 +378,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
 
             <input type="text" value={tags} onChange={(e) => setTags(e.target.value)}
               placeholder="Tags (comma separated)" 
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500" />
+              disabled={isInstance}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500" />
+
 
             <div className="flex gap-3 pt-2">
               <button type="submit" 

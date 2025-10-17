@@ -32,14 +32,14 @@ export interface Task {
 
 export interface Note {
   id: number;
-  title: string;
   content: string;
-  category: string;
+  topic?: string; // Optional topic field
   tags: string[];
   createdAt: string;
   updatedAt: string;
   active: boolean; // true = active, false = soft deleted (default: true)
 }
+
 
 
 export interface DatabaseConfig {

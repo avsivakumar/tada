@@ -9,22 +9,19 @@ interface NoteModalProps {
 }
 
 const NoteModal: React.FC<NoteModalProps> = ({ isOpen, onClose, onSave, note }) => {
-  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('Personal');
+  const [topic, setTopic] = useState('');
   const [tags, setTags] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       if (note) {
-        setTitle(note.title);
         setContent(note.content);
-        setCategory(note.category);
+        setTopic(note.topic || '');
         setTags(note.tags.join(', '));
       } else {
-        setTitle('');
         setContent('');
-        setCategory('Personal');
+        setTopic('');
         setTags('');
       }
     }
@@ -33,14 +30,13 @@ const NoteModal: React.FC<NoteModalProps> = ({ isOpen, onClose, onSave, note }) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      title,
       content,
-      category,
-      tags: tags.split(',').map(t => t.trim()).filter(Boolean)
+      topic: topic.trim() || undefined,
+      tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+      active: true
     }, note?.id);
     onClose();
   };
-
 
   if (!isOpen) return null;
 
@@ -52,14 +48,6 @@ const NoteModal: React.FC<NoteModalProps> = ({ isOpen, onClose, onSave, note }) 
             {note ? 'Edit Note' : 'New Note'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Note title"
-              required
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
-            />
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -70,9 +58,9 @@ const NoteModal: React.FC<NoteModalProps> = ({ isOpen, onClose, onSave, note }) 
             />
             <input
               type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Category"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Topic (optional)"
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
             />
             <input

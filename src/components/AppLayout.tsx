@@ -55,12 +55,22 @@ const AppLayout: React.FC = () => {
   const [dateFrom, setDateFrom] = useState<string | null>(getDefaultDateFrom());
   const [dateTo, setDateTo] = useState<string | null>(new Date().toISOString().split('T')[0]);
   
-  // Keywords filter
+  
+  // Keywords filter for tasks
   const [keywords, setKeywords] = useState('');
   const [keywordMatchType, setKeywordMatchType] = useState<'any' | 'all'>('any');
 
+  // Notes filters
+  const [dateFromNotes, setDateFromNotes] = useState<string | null>(getDefaultDateFrom());
+  const [dateToNotes, setDateToNotes] = useState<string | null>(new Date().toISOString().split('T')[0]);
+  const [keywordsNotes, setKeywordsNotes] = useState('');
+  const [keywordMatchTypeNotes, setKeywordMatchTypeNotes] = useState<'any' | 'all'>('any');
+
   // Pagination state
-  const [dashboardPage, setDashboardPage] = useState(1);
+  const [duePage, setDuePage] = useState(1);
+  const [urgentPage, setUrgentPage] = useState(1);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [completedTodayPage, setCompletedTodayPage] = useState(1);
   const [tasksPage, setTasksPage] = useState(1);
   const [notesPage, setNotesPage] = useState(1);
   const [searchTasksPage, setSearchTasksPage] = useState(1);
@@ -71,10 +81,13 @@ const AppLayout: React.FC = () => {
 
 
 
+
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [dueReminders, setDueReminders] = useState<Task[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isGeneratingRef = useRef(false);
+
 
 
 
@@ -123,38 +136,58 @@ const AppLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, [tasks]);
 
-  // Generate instances when it's time based on recurrence pattern
+  // Generate instances in background when dashboard loads
   useEffect(() => {
     const generateRecurringInstances = async () => {
-      // Only generate instances for active (not completed) recurring tasks
-      const recurringTasks = tasks.filter(t => t.isRecurring && !t.completed);
-      
-      for (const task of recurringTasks) {
-        // Check if it's time to generate the next instance
-        if (shouldGenerateNextInstance(task, tasks)) {
-          const nextInstance = generateNextOccurrence(task);
-          
-          if (nextInstance) {
-            await db.addTask(nextInstance);
-            await db.updateTask(task.id, { 
-              lastGeneratedDate: nextInstance.dueDate 
-            });
+      // Prevent concurrent generation
+      if (isGeneratingRef.current) return;
+      isGeneratingRef.current = true;
+
+      try {
+        // Get fresh tasks from database
+        const allTasks = await db.getTasks();
+        
+        // Only generate instances for active (not completed) recurring tasks
+        const recurringTasks = allTasks.filter(t => t.isRecurring && !t.completed);
+        
+        let hasGenerated = false;
+        for (const task of recurringTasks) {
+          // Check if it's time to generate the next instance
+          if (shouldGenerateNextInstance(task, allTasks)) {
+            const nextInstance = generateNextOccurrence(task);
+            
+            if (nextInstance) {
+              await db.addTask(nextInstance);
+              await db.updateTask(task.id, { 
+                lastGeneratedDate: nextInstance.dueDate 
+              });
+              hasGenerated = true;
+            }
           }
         }
-      }
-      
-      if (recurringTasks.length > 0) {
-        loadData();
+        
+        // Only reload if we actually generated something
+        if (hasGenerated) {
+          await loadData();
+        }
+      } finally {
+        isGeneratingRef.current = false;
       }
     };
 
+    // Run once on mount (when dashboard loads)
     generateRecurringInstances();
     
-    // Check every hour if new instances need to be generated
+    // Also check every hour if new instances need to be generated
     const interval = setInterval(generateRecurringInstances, 3600000); // Every hour
 
-    return () => clearInterval(interval);
-  }, [tasks]);
+    return () => {
+      clearInterval(interval);
+    };
+  }, []); // Empty dependency array - runs only on mount
+
+
+
 
 
   // Refresh data when returning to dashboard
@@ -163,6 +196,28 @@ const AppLayout: React.FC = () => {
       loadData();
     }
   }, [activeTab]);
+
+  // Reset pagination when switching between stat views
+  useEffect(() => {
+    setDuePage(1);
+    setUrgentPage(1);
+    setPendingPage(1);
+    setCompletedTodayPage(1);
+  }, [selectedStatView]);
+
+  // Reset tasks page when filters change
+  useEffect(() => {
+    setTasksPage(1);
+  }, [taskFilters, showRecurringOnly, dateFrom, dateTo, keywords, keywordMatchType]);
+
+  // Reset notes page when filters change
+  useEffect(() => {
+    setNotesPage(1);
+  }, [dateFromNotes, dateToNotes, keywordsNotes, keywordMatchTypeNotes]);
+
+
+
+
 
 
 
@@ -267,7 +322,7 @@ const AppLayout: React.FC = () => {
   };
 
   const getFilteredTasks = () => {
-    return tasks.filter(task => {
+    const filtered = tasks.filter(task => {
       // Apply priority filter
       if (taskFilters.priority.length > 0) {
         const taskPriorityStr = task.priority ? 'high' : 'normal';
@@ -282,11 +337,14 @@ const AppLayout: React.FC = () => {
       
       // Apply recurring tasks filter
       if (showRecurringOnly) {
-        // Show only recurring templates (not instances)
+        // Show both recurring templates AND their instances
         const isRecurringTemplate = task.isRecurring && !task.parentTaskId;
-        if (!isRecurringTemplate) return false;
+        const isRecurringInstance = !task.isRecurring && task.parentTaskId;
+        if (!isRecurringTemplate && !isRecurringInstance) return false;
       }
-      // When NOT showing recurring only, show BOTH templates and instances (no filter)
+      // When NOT showing recurring only, show ALL tasks (templates, instances, and non-recurring)
+
+
 
       
       // Apply date range filter based on createdAt
@@ -297,19 +355,84 @@ const AppLayout: React.FC = () => {
         return false;
       }
       
-      // Apply keywords filter
+      // Apply keywords filter - search in both tags and title
       if (keywords.trim()) {
-        const keywordList = keywords.toLowerCase().split(/\s+/).filter(k => k.length > 0);
-        const taskText = `${task.title} ${task.description || ''}`.toLowerCase();
+        const keywordList = keywords.toLowerCase().split(',').map(k => k.trim()).filter(k => k.length > 0);
+        const taskTags = (task.tags || []).map(tag => tag.toLowerCase());
+        const taskTitle = task.title.toLowerCase();
         
         if (keywordMatchType === 'all') {
-          // All keywords must be present
-          if (!keywordList.every(keyword => taskText.includes(keyword))) {
+          // All keywords must match at least one tag OR the title
+          if (!keywordList.every(keyword => 
+            taskTags.some(tag => tag.includes(keyword)) || taskTitle.includes(keyword)
+          )) {
             return false;
           }
         } else {
-          // Any keyword must be present
-          if (!keywordList.some(keyword => taskText.includes(keyword))) {
+          // Any keyword must match at least one tag OR the title
+          if (!keywordList.some(keyword => 
+            taskTags.some(tag => tag.includes(keyword)) || taskTitle.includes(keyword)
+          )) {
+            return false;
+          }
+        }
+      }
+
+
+      
+      return true;
+    });
+
+    // Sort: tasks with due date by due date ascending, tasks without due date by creation date ascending
+    return filtered.sort((a, b) => {
+      // Both have due dates - sort by due date ascending
+      if (a.dueDate && b.dueDate) {
+        return a.dueDate.localeCompare(b.dueDate);
+      }
+      // Only a has due date - a comes first
+      if (a.dueDate && !b.dueDate) return -1;
+      // Only b has due date - b comes first
+      if (!a.dueDate && b.dueDate) return 1;
+      // Neither has due date - sort by creation date ascending
+      return a.createdAt.localeCompare(b.createdAt);
+    });
+  };
+
+
+  // Filter notes based on date range and keywords
+  const getFilteredNotes = () => {
+    const filtered = notes.filter(note => {
+      // Apply date range filter based on createdAt
+      if (dateFromNotes && note.createdAt < dateFromNotes) {
+        return false;
+      }
+      if (dateToNotes && note.createdAt > dateToNotes) {
+        return false;
+      }
+      
+      // Apply keywords filter - search in tags, topic, and content
+      if (keywordsNotes.trim()) {
+        const keywordList = keywordsNotes.toLowerCase().split(',').map(k => k.trim()).filter(k => k.length > 0);
+        const noteTags = (note.tags || []).map(tag => tag.toLowerCase());
+        const noteTopic = (note.topic || '').toLowerCase();
+        const noteContent = note.content.toLowerCase();
+        
+        if (keywordMatchTypeNotes === 'all') {
+          // All keywords must match at least one of: tag, topic, or content
+          if (!keywordList.every(keyword => 
+            noteTags.some(tag => tag.includes(keyword)) || 
+            noteTopic.includes(keyword) || 
+            noteContent.includes(keyword)
+          )) {
+            return false;
+          }
+        } else {
+          // Any keyword must match at least one of: tag, topic, or content
+          if (!keywordList.some(keyword => 
+            noteTags.some(tag => tag.includes(keyword)) || 
+            noteTopic.includes(keyword) || 
+            noteContent.includes(keyword)
+          )) {
             return false;
           }
         }
@@ -317,9 +440,10 @@ const AppLayout: React.FC = () => {
       
       return true;
     });
+
+    // Sort by creation date descending (newest first)
+    return filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   };
-
-
 
 
 
@@ -398,16 +522,38 @@ const AppLayout: React.FC = () => {
   // Calculate stats
   const today = new Date().toISOString().split('T')[0];
   
-  // Tasks Due: only count incomplete tasks with due date <= today
+  // Tasks Due: only count incomplete tasks with due date <= today, exclude recurring templates
   const tasksDue = tasks.filter(t => {
+    // Exclude recurring templates (show only instances)
+    const isRecurringTemplate = t.isRecurring && !t.parentTaskId;
+    if (isRecurringTemplate) return false;
+    
     if (!t.dueDate || t.dueDate > today) return false;
     return !t.completed; // Exclude all completed tasks
   }).length;
   
-  const urgentTasks = tasks.filter(t => t.priority === true && !t.completed).length;
-  const pendingWork = tasks.filter(t => !t.dueDate && !t.isRecurring && !t.completed).length;
+  // Urgent Tasks: exclude recurring templates
+  const urgentTasks = tasks.filter(t => {
+    const isRecurringTemplate = t.isRecurring && !t.parentTaskId;
+    if (isRecurringTemplate) return false;
+    return t.priority === true && !t.completed;
+  }).length;
+  
+  // Pending Work: exclude recurring templates
+  const pendingWork = tasks.filter(t => {
+    const isRecurringTemplate = t.isRecurring && !t.parentTaskId;
+    if (isRecurringTemplate) return false;
+    return !t.dueDate && !t.completed;
+  }).length;
 
-  const completedToday = tasks.filter(t => t.completed && t.completionDate === today).length;
+  // Completed Today: exclude recurring templates
+  const completedToday = tasks.filter(t => {
+    const isRecurringTemplate = t.isRecurring && !t.parentTaskId;
+    if (isRecurringTemplate) return false;
+    return t.completed && t.completionDate === today;
+  }).length;
+
+
 
 
 
@@ -451,14 +597,21 @@ const AppLayout: React.FC = () => {
     }
 
     
-    // Sort by due date if applicable
+    // Sort: tasks with due date by due date ascending, tasks without due date by creation date ascending
     return filteredTasks.sort((a, b) => {
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return a.dueDate.localeCompare(b.dueDate);
+      // Both have due dates - sort by due date ascending
+      if (a.dueDate && b.dueDate) {
+        return a.dueDate.localeCompare(b.dueDate);
+      }
+      // Only a has due date - a comes first
+      if (a.dueDate && !b.dueDate) return -1;
+      // Only b has due date - b comes first
+      if (!a.dueDate && b.dueDate) return 1;
+      // Neither has due date - sort by creation date ascending
+      return a.createdAt.localeCompare(b.createdAt);
     });
   };
+
 
 
 
@@ -662,21 +815,68 @@ const AppLayout: React.FC = () => {
 
               {displayTasks.length > 0 ? (
                 <>
-                  {paginateArray(displayTasks, dashboardPage).map(task => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onToggle={handleToggleTask}
-                      onDelete={handleDeleteTask}
-                      onClick={handleTaskClick}
-                    />
-                  ))}
-                  {renderPagination(displayTasks.length, dashboardPage, setDashboardPage)}
+                  {selectedStatView === 'due' && (
+                    <>
+                      {paginateArray(displayTasks, duePage).map(task => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onToggle={handleToggleTask}
+                          onDelete={handleDeleteTask}
+                          onClick={handleTaskClick}
+                        />
+                      ))}
+                      {renderPagination(displayTasks.length, duePage, setDuePage)}
+                    </>
+                  )}
+                  {selectedStatView === 'urgent' && (
+                    <>
+                      {paginateArray(displayTasks, urgentPage).map(task => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onToggle={handleToggleTask}
+                          onDelete={handleDeleteTask}
+                          onClick={handleTaskClick}
+                        />
+                      ))}
+                      {renderPagination(displayTasks.length, urgentPage, setUrgentPage)}
+                    </>
+                  )}
+                  {selectedStatView === 'pending' && (
+                    <>
+                      {paginateArray(displayTasks, pendingPage).map(task => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onToggle={handleToggleTask}
+                          onDelete={handleDeleteTask}
+                          onClick={handleTaskClick}
+                        />
+                      ))}
+                      {renderPagination(displayTasks.length, pendingPage, setPendingPage)}
+                    </>
+                  )}
+                  {selectedStatView === 'completedToday' && (
+                    <>
+                      {paginateArray(displayTasks, completedTodayPage).map(task => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onToggle={handleToggleTask}
+                          onDelete={handleDeleteTask}
+                          onClick={handleTaskClick}
+                        />
+                      ))}
+                      {renderPagination(displayTasks.length, completedTodayPage, setCompletedTodayPage)}
+                    </>
+                  )}
                 </>
               ) : (
                 <p className="text-gray-500 text-center py-4">No tasks to display</p>
               )}
             </div>
+
           </div>
         )}
 
@@ -738,7 +938,82 @@ const AppLayout: React.FC = () => {
                 + Add
               </button>
             </div>
-            {paginateArray(notes, notesPage).map(note => (
+            
+            {/* Notes Filters */}
+            <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Date Range (Creation Date)</p>
+                  <div className="flex gap-3 items-center flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600">From:</label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={dateFromNotes || ''}
+                          onChange={(e) => setDateFromNotes(e.target.value || null)}
+                          className="text-sm border border-gray-300 rounded px-2 py-1"
+                        />
+                        {dateFromNotes && (
+                          <button
+                            onClick={() => setDateFromNotes(null)}
+                            className="absolute -right-2 -top-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600">To:</label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={dateToNotes || ''}
+                          onChange={(e) => setDateToNotes(e.target.value || null)}
+                          className="text-sm border border-gray-300 rounded px-2 py-1"
+                        />
+                        {dateToNotes && (
+                          <button
+                            onClick={() => setDateToNotes(null)}
+                            className="absolute -right-2 -top-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Keywords (comma-separated, press Enter)</p>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={keywordsNotes}
+                      onChange={(e) => setKeywordsNotes(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
+                      placeholder="e.g., meeting, planning"
+                      className="text-sm border border-gray-300 rounded px-3 py-1 w-96"
+                    />
+                    <label className="flex items-center gap-1 cursor-pointer whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={keywordMatchTypeNotes === 'all'}
+                        onChange={() => setKeywordMatchTypeNotes(prev => prev === 'any' ? 'all' : 'any')}
+                        className="w-3 h-3 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-gray-600">Match All</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            {paginateArray(getFilteredNotes(), notesPage).map(note => (
               <NoteCard
                 key={note.id}
                 note={note}
@@ -746,9 +1021,10 @@ const AppLayout: React.FC = () => {
                 onClick={handleNoteClick}
               />
             ))}
-            {renderPagination(notes.length, notesPage, setNotesPage)}
+            {renderPagination(getFilteredNotes().length, notesPage, setNotesPage)}
           </div>
         )}
+
 
 
         {activeTab === 'search' && (

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface TaskFiltersProps {
   activeFilters: {
@@ -32,13 +32,26 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
   onKeywordsChange,
   onKeywordMatchTypeToggle
 }) => {
+  const [keywordInput, setKeywordInput] = useState(keywords);
+
+  // Sync local input state with prop changes
+  useEffect(() => {
+    setKeywordInput(keywords);
+  }, [keywords]);
+
   const toggleFilter = (type: string, value: string) => {
     onFilterChange(type, value);
   };
 
+  const handleKeywordKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      onKeywordsChange(keywordInput);
+    }
+  };
+
   return (
     <div className="mb-4 space-y-4">
-      {/* First Row: Priority, Status, and Keywords */}
+      {/* First Row: Priority and Status */}
       <div className="flex flex-wrap gap-6 items-start">
         <div>
           <p className="text-xs font-semibold text-gray-600 mb-2">Priority</p>
@@ -78,15 +91,18 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
           </div>
         </div>
 
-        <div>
-          <p className="text-xs font-semibold text-gray-600 mb-2">Keywords</p>
+        {/* Keywords moved to the right */}
+        <div className="ml-auto">
+          <p className="text-xs font-semibold text-gray-600 mb-2">Keywords (comma-separated, press Enter)</p>
           <div className="flex gap-2 items-center">
             <input
               type="text"
-              value={keywords}
-              onChange={(e) => onKeywordsChange(e.target.value)}
-              placeholder="Enter keywords..."
-              className="text-sm border border-gray-300 rounded px-3 py-1 w-64"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onKeyPress={handleKeywordKeyPress}
+              placeholder="e.g., work, urgent, meeting"
+              className="text-sm border border-gray-300 rounded px-3 py-1 w-96"
+
             />
             <label className="flex items-center gap-1 cursor-pointer whitespace-nowrap">
               <input
@@ -100,6 +116,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
           </div>
         </div>
       </div>
+
 
       {/* Second Row: Date Range Filter and Show Recurring Tasks Only */}
       <div className="flex gap-6 items-start flex-wrap">
