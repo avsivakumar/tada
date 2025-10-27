@@ -34,7 +34,9 @@ const AppLayout: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMatchAll, setSearchMatchAll] = useState(false);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -96,14 +98,49 @@ const AppLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (searchQuery) {
-      db.searchTasks(searchQuery).then(setFilteredTasks);
-      db.searchNotes(searchQuery).then(setFilteredNotes);
+    if (searchQuery.trim()) {
+      // Split search query by commas and trim each term
+      const searchTerms = searchQuery.toLowerCase().split(',').map(t => t.trim()).filter(t => t.length > 0);
+      
+      // Filter tasks
+      const tasksFiltered = tasks.filter(task => {
+        const taskTitle = task.title.toLowerCase();
+        const taskTags = (task.tags || []).map(tag => tag.toLowerCase()).join(' ');
+        const taskContent = `${taskTitle} ${taskTags}`;
+        
+        if (searchMatchAll) {
+          // All terms must match
+          return searchTerms.every(term => taskContent.includes(term));
+        } else {
+          // Any term must match
+          return searchTerms.some(term => taskContent.includes(term));
+        }
+      });
+      
+      // Filter notes
+      const notesFiltered = notes.filter(note => {
+        const noteTopic = (note.topic || '').toLowerCase();
+        const noteContent = note.content.toLowerCase();
+        const noteTags = (note.tags || []).map(tag => tag.toLowerCase()).join(' ');
+        const noteText = `${noteTopic} ${noteContent} ${noteTags}`;
+        
+        if (searchMatchAll) {
+          // All terms must match
+          return searchTerms.every(term => noteText.includes(term));
+        } else {
+          // Any term must match
+          return searchTerms.some(term => noteText.includes(term));
+        }
+      });
+      
+      setFilteredTasks(tasksFiltered);
+      setFilteredNotes(notesFiltered);
     } else {
       setFilteredTasks(tasks);
       setFilteredNotes(notes);
     }
-  }, [searchQuery, tasks, notes]);
+  }, [searchQuery, searchMatchAll, tasks, notes]);
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -120,21 +157,122 @@ const AppLayout: React.FC = () => {
   useEffect(() => {
     const checkReminders = () => {
       const now = new Date();
-      const due = tasks.filter(task => {
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      // Check regular task reminders
+      const regularReminders = tasks.filter(task => {
         if (task.completed || !task.reminderTime) return false;
         const reminderTime = new Date(task.reminderTime);
         const snoozedUntil = task.snoozedUntil ? new Date(task.snoozedUntil) : null;
         
-        // Show if reminder time has passed and not currently snoozed
-        return reminderTime <= now && (!snoozedUntil || snoozedUntil <= now);
+        // Only show if currently snoozed and snooze time has passed
+        if (snoozedUntil && snoozedUntil > now) return false;
+        
+        // Check if reminder time is within the current minute window
+        // This prevents showing reminders from the past and ensures they fire at the right time
+        const reminderMinute = reminderTime.getMinutes();
+        const reminderHour = reminderTime.getHours();
+        const reminderDate = reminderTime.toDateString();
+        const currentDate = now.toDateString();
+        
+        // Only show if:
+        // 1. Reminder date is today or earlier
+        // 2. If reminder date is today, check if we're at or past the reminder hour/minute
+        if (reminderDate > currentDate) return false; // Future date
+        
+        if (reminderDate === currentDate) {
+          // Same day - check hour and minute
+          if (reminderHour > currentHour) return false; // Future hour today
+          if (reminderHour === currentHour && reminderMinute > currentMinute) return false; // Future minute this hour
+        }
+        
+        // Check if this reminder was already shown (dismissed without snooze)
+        // For regular reminders, once dismissed, they're cleared, so this is handled by reminderTime being undefined
+        
+        return true;
       });
-      setDueReminders(due);
+      
+      // Check hourly recurring tasks
+      const hourlyReminders = tasks.filter(task => {
+        if (task.completed || !task.isRecurring || task.recurrencePattern !== 'hourly') return false;
+        
+        // Determine the scheduled minute for this task
+        let scheduledMinute = task.recurrenceMinute;
+        
+        // If no recurrenceMinute is set, derive it from dueTime or createdAt
+        if (scheduledMinute === undefined || scheduledMinute === null) {
+          if (task.dueTime) {
+            // Use the minute from dueTime
+            const [hours, minutes] = task.dueTime.split(':').map(Number);
+            scheduledMinute = minutes;
+          } else {
+            // Use the minute from createdAt timestamp
+            // This ensures the reminder fires at the same minute it was created
+            const createdDate = new Date(task.createdAt);
+            scheduledMinute = createdDate.getMinutes();
+          }
+        }
+        
+        // Only fire if current minute matches scheduled minute (within a 1-minute window)
+        if (currentMinute !== scheduledMinute) return false;
+        
+        // Check if task has a dueDate/dueTime - don't fire before it
+        if (task.dueDate) {
+          const dueDateTime = new Date(task.dueDate);
+          if (task.dueTime) {
+            const [hours, minutes] = task.dueTime.split(':').map(Number);
+            dueDateTime.setHours(hours, minutes, 0, 0);
+          } else {
+            dueDateTime.setHours(0, 0, 0, 0);
+          }
+          
+          // Don't fire if we haven't reached the due date/time yet
+          if (now < dueDateTime) return false;
+        }
+        
+        // Check if this reminder was already dismissed in the current hour
+        if (task.lastDismissedHour) {
+          const lastDismissed = new Date(task.lastDismissedHour);
+          const lastDismissedHour = lastDismissed.getHours();
+          const lastDismissedDate = lastDismissed.toDateString();
+          const currentDate = now.toDateString();
+          
+          // Skip if dismissed in the current hour of the current day
+          if (lastDismissedDate === currentDate && lastDismissedHour === currentHour) {
+            return false;
+          }
+        }
+        
+        // Check if within recurrence end date
+        if (task.recurrenceEndDate) {
+          const endDate = new Date(task.recurrenceEndDate);
+          if (now > endDate) return false;
+        }
+        
+        return true;
+      });
+      
+      // Combine both types of reminders
+      const allReminders = [...regularReminders, ...hourlyReminders];
+      setDueReminders(allReminders);
     };
 
-    checkReminders();
+    // Initial check after a short delay to avoid showing reminders immediately on task creation
+    const initialTimeout = setTimeout(checkReminders, 2000); // 2 second delay on mount
+    
+    // Then check every minute
     const interval = setInterval(checkReminders, 60000); // Check every minute
-    return () => clearInterval(interval);
+    
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, [tasks]);
+
+
+
+
 
   // Generate instances in background when dashboard loads
   useEffect(() => {
@@ -497,9 +635,19 @@ const AppLayout: React.FC = () => {
   };
 
   const handleDismissReminder = async (taskId: number) => {
-    await db.updateTask(taskId, { reminderTime: undefined, reminderOffset: undefined });
+    const task = tasks.find(t => t.id === taskId);
+    
+    // For hourly recurring tasks, just mark the current hour as dismissed
+    if (task?.isRecurring && task.recurrencePattern === 'hourly') {
+      await db.updateTask(taskId, { lastDismissedHour: new Date().toISOString() });
+    } else {
+      // For regular reminders, clear the reminder fields
+      await db.updateTask(taskId, { reminderTime: undefined, reminderOffset: undefined });
+    }
+    
     await loadData();
   };
+
 
   const handleTaskReschedule = async (taskId: number, newDate: string) => {
     await db.updateTask(taskId, { dueDate: newDate });
@@ -1033,7 +1181,9 @@ const AppLayout: React.FC = () => {
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder="Search tasks and notes..."
+              placeholder="Search tasks and notes (comma-separated)..."
+              matchAll={searchMatchAll}
+              onMatchAllChange={setSearchMatchAll}
             />
             {searchQuery && (
               <>
@@ -1070,6 +1220,7 @@ const AppLayout: React.FC = () => {
 
               </>
             )}
+
           </div>
         )}
 

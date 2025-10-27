@@ -15,7 +15,7 @@ export interface Task {
   reminderTime?: string; // Calculated reminder time (ISO date string)
   snoozedUntil?: string; // ISO date string for when snoozed reminder should reappear
   isRecurring?: boolean; // Whether this is a recurring task
-  recurrencePattern?: 'daily' | 'weekly' | 'monthly' | 'yearly'; // How often it repeats
+  recurrencePattern?: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'hourly'; // How often it repeats
   recurrenceEndDate?: string; // When to stop generating instances
   // Recurrence-specific fields
   recurrenceTime?: string; // Time of day for daily tasks (HH:MM format)
@@ -23,9 +23,12 @@ export interface Task {
   recurrenceDayOfMonth?: number; // Day of month for monthly tasks (1-31)
   recurrenceMonth?: number; // Month for yearly tasks (1-12)
   recurrenceDayOfYear?: number; // Day for yearly tasks (1-31)
+  recurrenceMinute?: number; // Minute of the hour for hourly tasks (0-59)
   parentTaskId?: number; // ID of the original recurring task (for generated instances)
-  lastGeneratedDate?: string; // Last date an instance was generated (for parent tasks)
+  lastDismissedHour?: string; // ISO timestamp of when hourly reminder was last dismissed
+  lastGeneratedDate?: string; // Last date an instance was generated for this recurring task
 }
+
 
 
 

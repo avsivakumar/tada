@@ -3,7 +3,6 @@ import { Task } from '../types';
 export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null => {
   if (!task.isRecurring || !task.recurrencePattern) return null;
 
-  // Determine base date for recurring task
   let baseDate: Date;
   if (fromDate) {
     baseDate = fromDate;
@@ -12,16 +11,19 @@ export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null
   } else if (task.dueDate) {
     baseDate = new Date(task.dueDate);
   } else {
-    // For new recurring tasks without due date, start from today
     baseDate = new Date();
   }
 
   const nextDate = new Date(baseDate);
 
-  // If this is the first instance and no lastGeneratedDate, use the base date as-is
-  // Otherwise, increment based on pattern
   if (task.lastGeneratedDate || fromDate) {
     switch (task.recurrencePattern) {
+      case 'hourly':
+        nextDate.setHours(nextDate.getHours() + 1);
+        if (task.recurrenceMinute !== undefined) {
+          nextDate.setMinutes(task.recurrenceMinute);
+        }
+        break;
       case 'daily':
         nextDate.setDate(nextDate.getDate() + 1);
         break;
@@ -36,6 +38,7 @@ export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null
         break;
     }
   }
+
 
   // Check if we've passed the end date
   if (task.recurrenceEndDate && nextDate > new Date(task.recurrenceEndDate)) {
@@ -95,6 +98,9 @@ export const generateNextOccurrence = (task: Task, fromDate?: Date): Task | null
 export const shouldGenerateNextInstance = (task: Task, existingTasks: Task[]): boolean => {
   if (!task.isRecurring || !task.recurrencePattern) return false;
   
+  // Hourly tasks don't generate instances - they only fire reminders
+  if (task.recurrencePattern === 'hourly') return false;
+  
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
@@ -143,6 +149,7 @@ export const shouldGenerateNextInstance = (task: Task, existingTasks: Task[]): b
   // Only generate if no instance exists for this date
   return !instanceExists;
 };
+
 
 
 
