@@ -92,6 +92,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
         dueTime: task!.dueTime,
         completed,
         completionDate: completed && !task?.completed ? new Date().toISOString().split('T')[0] : task?.completionDate,
+        completionTime: completed && !task?.completed ? new Date().toISOString() : task?.completionTime,
+
+
         tags: task!.tags,
         reminderNumber: task!.reminderNumber,
         reminderUnit: task!.reminderUnit,
@@ -127,9 +130,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
       const reminder = new Date(due.getTime() - offsetMs);
       reminderTime = reminder.toISOString();
     }
+    // Set completionDate and completionTime if task is being marked as completed
+    const now = new Date();
+    const completionDate = completed && !task?.completed ? now.toISOString().split('T')[0] : task?.completionDate;
+    const completionTime = completed && !task?.completed ? now.toISOString() : task?.completionTime;
 
-    // Set completionDate if task is being marked as completed
-    const completionDate = completed && !task?.completed ? new Date().toISOString().split('T')[0] : task?.completionDate;
+
 
     onSave({
       title,
@@ -138,6 +144,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
       dueTime: dueTime || undefined,
       completed,
       completionDate,
+      completionTime,
+
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       reminderNumber: hasReminder && reminderNumber > 0 ? reminderNumber : undefined,
       reminderUnit: hasReminder && reminderNumber > 0 ? reminderUnit : undefined,
@@ -182,28 +190,29 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4 items-start">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                   placeholder="Task title" required
                   disabled={isInstance}
-                  className="w-full px-4 py-3 text-lg border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500" />
+                  className="w-full px-4 py-3 text-lg border rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500 overflow-x-auto" />
               </div>
 
               {task && (
-                <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-3 rounded-lg border border-gray-200 whitespace-nowrap">
+                <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-3 rounded-lg border border-gray-200 whitespace-nowrap flex-shrink-0">
                   <input type="checkbox" checked={completed}
                     onChange={(e) => setCompleted(e.target.checked)}
                     className="w-5 h-5 text-teal-600 rounded" />
-                  <span className="font-semibold text-gray-700">Mark as Completed</span>
+                  <span className="font-semibold text-gray-700">Complete?</span>
                 </label>
               )}
             </div>
 
-            {task && completed && task.completionDate && (
+            {task && completed && task.completionTime && (
               <div className="text-sm text-gray-600 bg-green-50 p-2 rounded border border-green-200">
-                Completed on: {new Date(task.completionDate).toLocaleDateString()} at {new Date(task.completionDate).toLocaleTimeString()}
+                Completed on: {new Date(task.completionDate!).toLocaleDateString()} at {new Date(task.completionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             )}
+
 
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={priority}
@@ -212,6 +221,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, task, se
                 className="w-5 h-5 text-teal-600 rounded disabled:opacity-50 disabled:cursor-not-allowed" />
               <span className="font-semibold text-gray-700">High Priority</span>
             </label>
+
 
 
 

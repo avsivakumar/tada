@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-
+import { useAppContext } from '../contexts/AppContext';
+import { AuthScreen } from './AuthScreen';
 import { Task, Note } from '../types';
 import { db } from '../utils/database';
 import { exportToJSON, exportToCSV, importFromJSON } from '../utils/exportImport';
@@ -26,6 +27,9 @@ import {
 
 
 const AppLayout: React.FC = () => {
+  const { isAuthenticated, setIsAuthenticated, logout } = useAppContext();
+
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'notes' | 'search' | 'calendar'>('dashboard');
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(null);
   const [selectedStatView, setSelectedStatView] = useState<'due' | 'urgent' | 'pending' | 'completedToday'>('due');
@@ -380,10 +384,13 @@ const AppLayout: React.FC = () => {
       }
       
       const newCompletedState = !task.completed;
+      const now = new Date();
       const updateData: Partial<Task> = { 
         completed: newCompletedState,
-        completionDate: newCompletedState ? new Date().toISOString().split('T')[0] : undefined
+        completionDate: newCompletedState ? now.toISOString().split('T')[0] : undefined,
+        completionTime: newCompletedState ? now.toISOString() : undefined
       };
+
       
       await db.updateTask(id, updateData);
       await loadData();
@@ -823,8 +830,14 @@ const AppLayout: React.FC = () => {
   };
 
 
+  // Show auth screen if not authenticated
+  if (!isAuthenticated) {
+    return <AuthScreen onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-900 to-teal-700 text-white p-6 shadow-lg">
         <div className="max-w-4xl mx-auto">
@@ -835,6 +848,15 @@ const AppLayout: React.FC = () => {
 
             </div>
             <div className="flex items-center gap-3">
+              {/* Logout Button */}
+              <button
+                onClick={logout}
+                className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg transition-colors text-sm font-semibold"
+                title="Logout"
+              >
+                Logout
+              </button>
+
               {/* Notification Bell */}
               <button
                 onClick={() => setShowNotifications(true)}
@@ -887,6 +909,7 @@ const AppLayout: React.FC = () => {
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </header>

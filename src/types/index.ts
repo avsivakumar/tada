@@ -5,7 +5,9 @@ export interface Task {
   dueDate: string | null; // null means pending task without deadline
   dueTime?: string; // Optional time for due date (HH:MM format)
   completed: boolean;
-  completionDate?: string; // ISO date string when task was marked complete
+  completionDate?: string; // Date-only string (YYYY-MM-DD) when task was marked complete
+  completionTime?: string; // Full ISO timestamp when task was marked complete
+
   active: boolean; // true = active, false = soft deleted (default: true)
 
   tags: string[];
