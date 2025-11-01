@@ -848,15 +848,6 @@ const AppLayout: React.FC = () => {
 
             </div>
             <div className="flex items-center gap-3">
-              {/* Logout Button */}
-              <button
-                onClick={logout}
-                className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg transition-colors text-sm font-semibold"
-                title="Logout"
-              >
-                Logout
-              </button>
-
               {/* Notification Bell */}
               <button
                 onClick={() => setShowNotifications(true)}
@@ -871,13 +862,15 @@ const AppLayout: React.FC = () => {
               </button>
 
               <div className="relative export-menu-container">
-
-
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors"
+                  className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors h-10"
                 >
-                  <span className="text-xl">📥</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
                   <span className="text-sm font-semibold">Backup</span>
                 </button>
                 
@@ -908,11 +901,26 @@ const AppLayout: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
 
+              {/* Logout Button */}
+              <button
+                onClick={logout}
+                className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors h-10"
+                title="Logout"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span className="text-sm font-semibold">Logout</span>
+              </button>
+
+            </div>
           </div>
         </div>
       </header>
+
 
       {/* Hidden file input */}
       <input
