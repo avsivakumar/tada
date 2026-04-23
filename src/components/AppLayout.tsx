@@ -617,10 +617,21 @@ const AppLayout: React.FC = () => {
       
       // Add imported data to database
       for (const task of importedTasks) {
-        await db.addTask(task);
+        const { id, ...taskWithoutId } = task;
+        await db.addTask({
+          ...taskWithoutId,
+          active: taskWithoutId.active ?? true,
+          tags: taskWithoutId.tags ?? []
+        });
       }
+      
       for (const note of importedNotes) {
-        await db.addNote(note);
+        const { id, ...noteWithoutId } = note;
+        await db.addNote({
+          ...noteWithoutId,
+          active: noteWithoutId.active ?? true,
+          tags: noteWithoutId.tags ?? []
+        });
       }
       
       await loadData();
