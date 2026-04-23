@@ -608,43 +608,45 @@ const AppLayout: React.FC = () => {
     setShowExportMenu(false);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    try {
-      const { tasks: importedTasks, notes: importedNotes } = await importFromJSON(file);
-      
-      // Add imported data to database
-      for (const task of importedTasks) {
-        const { id, ...taskWithoutId } = task;
-        await db.addTask({
-          ...taskWithoutId,
-          active: taskWithoutId.active ?? true,
-          tags: taskWithoutId.tags ?? []
-        });
-      }
-      
-      for (const note of importedNotes) {
-        const { id, ...noteWithoutId } = note;
-        await db.addNote({
-          ...noteWithoutId,
-          active: noteWithoutId.active ?? true,
-          tags: noteWithoutId.tags ?? []
-        });
-      }
-      
-      await loadData();
-      alert(`Successfully imported ${importedTasks.length} tasks and ${importedNotes.length} notes!`);
-    } catch (error) {
-      alert('Failed to import data. Please check the file format.');
+  try {
+    const { tasks: importedTasks, notes: importedNotes } = await importFromJSON(file);
+
+    const normalizedTasks = importedTasks.map(({ id, ...task }) => ({
+      ...task,
+      active: task.active ?? true,
+      tags: task.tags ?? []
+    }));
+
+    const normalizedNotes = importedNotes.map(({ id, ...note }) => ({
+      ...note,
+      active: note.active ?? true,
+      tags: note.tags ?? []
+    }));
+
+    // For now: append import
+    for (const task of normalizedTasks) {
+      await db.addTask(task);
     }
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+
+    for (const note of normalizedNotes) {
+      await db.addNote(note);
     }
-  };
+
+    await loadData();
+    alert(`Successfully imported ${normalizedTasks.length} tasks and ${normalizedNotes.length} notes!`);
+  } catch (error) {
+    console.error(error);
+    alert(error instanceof Error ? error.message : 'Failed to import data. Please check the file format.');
+  }
+
+  if (fileInputRef.current) {
+    fileInputRef.current.value = '';
+  }
+};
 
   const handleSnoozeReminder = async (taskId: number, minutes: number) => {
     const snoozeUntil = new Date(Date.now() + minutes * 60000).toISOString();
