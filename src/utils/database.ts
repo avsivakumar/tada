@@ -110,7 +110,19 @@ class DatabaseService {
       )
     ).toArray();
   }
-
+  async clearAll(): Promise<void> {
+    await dexieDb.transaction('rw', dexieDb.tasks, dexieDb.notes, async () => {
+      await dexieDb.tasks.clear();
+      await dexieDb.notes.clear();
+    });
+  }
+  
+  async importData(tasks: Omit<Task, 'id'>[], notes: Omit<Note, 'id'>[]): Promise<void> {
+    await dexieDb.transaction('rw', dexieDb.tasks, dexieDb.notes, async () => {
+      await dexieDb.tasks.bulkAdd(tasks as Task[]);
+      await dexieDb.notes.bulkAdd(notes as Note[]);
+    });
+  }
 }
 
 export const db = new DatabaseService();
