@@ -1,4 +1,4 @@
-# Tada - Mobile-Optimized Task & Note Manager
+# Tada - Mobile-Optimized Task & Notes Manager
 
 A mobile-first productivity app built with React, TypeScript, and Tailwind CSS.
 
