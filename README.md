@@ -1,6 +1,6 @@
 # TaskFlow - Mobile-Optimized Task & Note Manager
 
-A beautiful, mobile-first productivity app built with React, TypeScript, and Tailwind CSS.
+A mobile-first productivity app built with React, TypeScript, and Tailwind CSS.
 
 ## 🎯 Features
 
